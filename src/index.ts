@@ -1,5 +1,5 @@
 import express, { Express, Request, Response } from "express";
-import { dAuthMiddleware } from "./middleware/authMiddleware";
+import { AuthenticatedRequest, authenticateToken, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
 
@@ -21,6 +21,18 @@ dAuthMiddleware(app, {
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
+});
+
+app.use('/api', authenticateToken);
+
+// Define routes
+app.get('/api/public/data', (req: Request, res: Response) => {
+  res.send('This is a public route');
+});
+
+app.get('/api/private/data', (req: AuthenticatedRequest, res: Response) => {
+  // Only authenticated users will reach here
+  res.send(`Hello, ${req.user.email}`);
 });
 
 app.get('/auth/privacy-policy', (req: express.Request, res: express.Response) => {

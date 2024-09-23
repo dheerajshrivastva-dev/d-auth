@@ -34,13 +34,10 @@ export function passportConfig(options: AuthOptions) {
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        let user = await User.findOne({ googleId: profile.id });
-        if (!user) {
-          user = await User.create({
-            googleId: profile.id,
-            email: profile.emails![0].value,
-            tokens: [{ accessToken, refreshToken }]
-          });
+        const user = {
+          googleId: profile.id,
+          accessToken,
+          email: profile.emails?.[0].value,
         }
         return done(null, user);
       } catch (error) {
@@ -53,37 +50,13 @@ export function passportConfig(options: AuthOptions) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await User.findOne({ email }) as IUser;
-  
-        // If the user does not exist
-        if (!user) {
-          return done(null, false, { message: 'Incorrect email or password.' });
+        // const isMatch = await bcrypt.compare(password, user.password);
+        const user = {
+          email,
+          password
         }
-  
-        // Check if the password matches
-        if (!user.password) {
-          return done(null, false, { message: 'Please forgot your password.' });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          return done(null, false, { message: 'Incorrect email or password.' });
-        }
-
-        // Generate unique sessionId for this session
-        const sessionId = uuidv4();
-  
-        // Generate the tokens
-        const accessToken = generateAccessToken(user.id, sessionId);
-        const refreshToken = generateRefreshToken(user.id, sessionId);
-  
-        // Store the refresh token in the database (or update if already exists)
-        // Add new session tokens to user (instead of replacing all tokens)
-        user.tokens.push({ sessionId, accessToken, refreshToken });
-        await user.save();
-  
         // Return user and tokens
-        return done(null, { accessToken, refreshToken });
+        return done(null, user);
       } catch (error) {
         return done(error);
       }
@@ -101,14 +74,13 @@ export function passportConfig(options: AuthOptions) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          let user = await User.findOne({ facebookId: profile.id });
-          if (!user) {
-            user = await User.create({
-              facebookId: profile.id,
-              email: profile.emails?.[0].value,
-              tokens: [{ accessToken, refreshToken }],
-            });
-          }
+
+          const user = {
+            facebookId: profile.id,
+            email: profile.emails?.[0].value,
+            accessToken,
+          };
+
           return done(null, user);
         } catch (error) {
           return done(error, null);

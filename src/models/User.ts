@@ -8,9 +8,10 @@ export interface IUser extends Document {
   appleId?: string;
   tokens: {
     sessionId?:string;
-    accessToken: string;
     refreshToken: string;
   }[];
+
+  addSession(refreshToken: string, sessionId: string): Promise<void>;
 }
 
 const userSchema = new Schema<IUser>({
@@ -22,12 +23,21 @@ const userSchema = new Schema<IUser>({
   tokens: [
     {
       sessionId: { type: String }, // Unique session identifier
-      accessToken: { type: String },
       refreshToken: { type: String },
       createdAt: { type: Date, default: Date.now, expires: '7d' } // Automatically delete after 7 days
     }
   ]
 });
+
+userSchema.methods.addSession = async function (refreshToken: string, sessionId: string) {
+  if (this.tokens.length >= 10) {
+    // Remove the oldest session (FIFO) when max sessions are reached
+    this.tokens.shift();
+  }
+
+  this.tokens.push({ sessionId, refreshToken });
+  await this.save();
+};
 
 userSchema.index({ 'tokens.createdAt': 1 }, { expireAfterSeconds: 60 * 60 * 24 * 7 }); // 7 days
 

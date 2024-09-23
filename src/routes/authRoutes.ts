@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
-import { register, login, logout, refresh, forgotPassword } from '../controllers/authController';
+import { register, login, logout, refresh, forgotPassword, googleLoginCallback, facebookLoginCallback } from '../controllers/authController';
 import { IUser } from '../models/User';
 
 const router = Router();
@@ -11,17 +11,11 @@ router.post('/login', login);
 
 // Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
-  const user = req.user as IUser;
-  res.send({"message": "login successful", "accessToken": user?.tokens[0].accessToken, "refreshToken": user?.tokens[0].refreshToken, user: {email: user?.email, id: user?._id}});
-});
+router.get('/google/callback', passport.authenticate('google', { session: false }), googleLoginCallback);
 
 // Facebook OAuth
 router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
-router.get('/facebook/callback', passport.authenticate('facebook', { session: false }), (req, res) => {
-  console.debug(req.user)
-  // res.redirect('/');
-});
+router.get('/facebook/callback', passport.authenticate('facebook', { session: false }), facebookLoginCallback);
 
 // Apple OAuth
 // router.get('/apple', passport.authenticate('apple'));

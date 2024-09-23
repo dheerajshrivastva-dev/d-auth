@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
-import User from '../models/User';
+import User, { IUser } from '../models/User';
 import bcrypt from 'bcryptjs';
-import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens';
+import { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import sendEmail from '../utils/sendEmail';
@@ -10,8 +10,29 @@ import dotenv from "dotenv";
 import passport from 'passport';
 import { verifyToken } from '../utils/verifyToken';
 import { v4 as uuidv4 } from 'uuid';
+import { Document } from 'mongoose';
 
 dotenv.config();
+
+const handleRegister = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+}
+
+interface handleTokenReturnType {
+  accessToken: string;
+  sessionId: string;
+  refreshToken: string;
+}
+const generateTokensByUserId = (userId: string): handleTokenReturnType => {
+  // Generate unique sessionId for this session
+  const sessionId = uuidv4();
+
+  const accessToken = generateAccessToken(userId, sessionId);
+  const refreshToken = generateRefreshToken(userId, sessionId);
+
+  return {sessionId, refreshToken, accessToken};
+}
 
 export const register = async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -28,16 +49,21 @@ export const register = async (req: Request, res: Response) => {
       password: hashedPassword,
     });
 
-    // Generate unique sessionId for this session
-    const sessionId = uuidv4();
+    // Generate the tokens
+    const { sessionId, accessToken, refreshToken } = generateTokensByUserId(user.id);
 
-    const accessToken = generateAccessToken(user.id, sessionId);
-    const refreshToken = generateRefreshToken(user.id, sessionId);
+    await user.addSession(refreshToken, sessionId);
 
-    user.tokens.push({ accessToken, refreshToken, sessionId });
-    await user.save();
+    // Send refresh token as an HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true, // Prevents client-side JS from accessing the cookie
+      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
+      sameSite: 'strict', // Helps mitigate CSRF attacks
+      maxAge: REFRESH_TOKEN_EXP_TIME
+    });
 
-    res.status(201).json({ accessToken, refreshToken });
+    // Return user and tokens
+    res.status(201).json({ message: 'registration successful', user: {id: user.id, email: user.email, accessToken }});
   } catch (error) {
     console.debug(error);
     res.status(500).json({ error: JSON.stringify(error) });
@@ -46,23 +72,92 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   // handled by Passport LocalStrategy
-  passport.authenticate('local', { session: false }, (err: any, data: any, info:any) => {
-    if (err || !data) {
-      return res.status(400).json({
-        message: info ? info.message : 'Login failed',
-      });
+  passport.authenticate('local', { session: false }, async (err: any, user: {email: string, password: string}, info: any) => {
+    if (!user?.email || !user?.password) {
+      return res.status(400).json({ message: info ? info.message : 'Incorrect email or password.' });
     }
 
-    // On successful authentication, send tokens and user info
-    const { accessToken, refreshToken } = data;
+    const existingUser = await User.findOne({ email: user.email });
+  
+    // If the user does not exist
+    if (!existingUser) {
+      return res.status(400).json({ message: 'Incorrect email or password.'});
+    }
 
-    return res.json({
-      message: 'Login successful',
-      accessToken,
-      refreshToken,
+    // Check if the password matches
+    if (!existingUser.password) {
+      return res.status(400).json({ message: 'Please forget your password.' });
+    }
+
+    const isMatch = await bcrypt.compare(user.password, existingUser.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect email or password.' });
+    }
+
+    const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
+
+    await existingUser.addSession(refreshToken, sessionId);
+    // Send refresh token as an HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true, // Prevents client-side JS from accessing the cookie
+      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
+      sameSite: 'strict', // Helps mitigate CSRF attacks
+      maxAge: REFRESH_TOKEN_EXP_TIME
     });
+
+    // Return user and tokens
+    return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
+
   })(req, res, next);
 };
+
+export const googleLoginCallback = async (req: Request, res: Response) => {
+  const user = req.user as {googleId: string, email: string};
+  let existingUser = await User.findOne({ googleId: user?.googleId });
+
+  if (!existingUser) {
+    existingUser = await User.create({
+      email: user?.email,
+      googleId: user?.googleId,
+    });
+  }
+  const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
+
+  await existingUser.addSession(refreshToken, sessionId);
+  // Send refresh token as an HTTP-only cookie
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true, // Prevents client-side JS from accessing the cookie
+    secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
+    sameSite: 'strict', // Helps mitigate CSRF attacks
+    maxAge: REFRESH_TOKEN_EXP_TIME
+  });
+
+  return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
+}
+
+export const facebookLoginCallback = async (req: Request, res: Response) => {
+  const user = req.user as {facebookId: string, email: string};
+  let existingUser = await User.findOne({ googleId: user?.facebookId });
+
+  if (!existingUser) {
+    existingUser = await User.create({
+      email: user?.email,
+      facebookId: user?.facebookId,
+    });
+  }
+  const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
+
+  await existingUser.addSession(refreshToken, sessionId);
+  // Send refresh token as an HTTP-only cookie
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true, // Prevents client-side JS from accessing the cookie
+    secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
+    sameSite: 'strict', // Helps mitigate CSRF attacks
+    maxAge: REFRESH_TOKEN_EXP_TIME
+  });
+
+  return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
+}
 
 export const logout = async (req: Request, res: Response) => {
   const { accessToken } = req.body;
@@ -84,6 +179,9 @@ export const logout = async (req: Request, res: Response) => {
 
     await user.save();
 
+    // Clear cookies
+    res.clearCookie('refreshToken');
+
     req.logout((err) => {
       if (err) {
         return res.status(500).json({ message: 'Failed to log out' });
@@ -98,7 +196,7 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const refresh = async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req?.cookies?.refreshToken;
 
   if (!refreshToken) {
     return res.status(403).json({ message: 'Refresh token is required' });
@@ -131,15 +229,19 @@ export const refresh = async (req: Request, res: Response) => {
     const newRefreshToken = generateRefreshToken(user.id, sessionToken.sessionId);
 
     // Update tokens in the session object
-    sessionToken.accessToken = newAccessToken;
     sessionToken.refreshToken = newRefreshToken;
 
     await user.save();
 
-    return res.json({
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
+    // Send refresh token as an HTTP-only cookie
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true, // Prevents client-side JS from accessing the cookie
+      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
+      sameSite: 'strict', // Helps mitigate CSRF attacks
+      maxAge: REFRESH_TOKEN_EXP_TIME
     });
+
+    return res.json({ user: {id: user.id, email: user.email, accessToken: newAccessToken  }});
   } catch (error) {
     return res.status(403).json({ message: 'Invalid refresh token' });
   }
