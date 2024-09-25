@@ -15,12 +15,68 @@ import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
-interface DAuthOptions extends AuthOptions {
+export interface DAuthOptions extends AuthOptions {
   sessionSecret: string;
   mongoDbUri: string;
 }
 
+/**
+ * Configures and initializes authentication middleware for the Express application.
+ *
+ * @param {Express} app - The Express application instance.
+ * @param {DAuthOptions} options - Options for authentication configuration.
+ * @return {void}
+ *
+ * @example
+ * // Initialize Express app and configure dAuth middleware
+ * import express, { Express } from "express";
+ * import { dAuthMiddleware } from "./middleware/authMiddleware";
+ * import dotenv from "dotenv";
+ *
+ * dotenv.config();
+ * const app: Express = express();
+ * const port = process.env.PORT || 3000;
+ *
+ * dAuthMiddleware(app, {
+ *   mongoDbUri: process.env.MONGO_URI!,
+ *   sessionSecret: process.env.SESSION_SECRET!,
+ *   googleClientId: process.env.GOOGLE_CLIENT_ID! || "",
+ *   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET! || "",
+ *   googleCallbackURL: process.env.GOOGLE_CALLBACK_URL! || "",
+ *   facebookAppId: process.env.FACEBOOK_APP_ID! || "",
+ *   facebookAppSecret: process.env.FACEBOOK_APP_SECRET! || "",
+ *   facebookCallbackURL: process.env.FACEBOOK_CALLBACK_URL! || "",
+ * });
+ *
+ * // Define routes and start server
+ * app.get("/", (req, res) => {
+ *   res.send("Express + TypeScript Server");
+ * });
+ *
+ * app.use('/api', authenticateToken);
+ *
+ * app.get('/api/public/data', (req, res) => {
+ *   res.send('This is a public route');
+ * });
+ *
+ * app.get('/api/private/data', (req, res) => {
+ *   // Only authenticated users will reach here
+ *   res.send(`Hello, ${req.user.email}`);
+ * });
+ *
+ * app.listen(port, () => {
+ *   console.log(`[server]: Server is running at http://localhost:${port}`);
+ * });
+ */
 export function dAuthMiddleware(app: Express, options: DAuthOptions) {
+
+  if (!options.sessionSecret) {
+    throw new Error('Session secret is required');
+  }
+
+  if (!options.mongoDbUri) {
+    throw new Error('MongoDB URI is required');
+  }
 
   // MongoDB connection
   mongoose.connect(options.mongoDbUri)
@@ -48,6 +104,14 @@ export interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
+/**
+ * Authenticates a token sent in the Authorization header of an incoming request.
+ *
+ * @param {AuthenticatedRequest} req - The incoming request object.
+ * @param {Response} res - The outgoing response object.
+ * @param {NextFunction} next - The next middleware or route handler in the stack.
+ * @return {void}
+ */
 export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   // Skip /api/public/* routes
   if (req.path.startsWith('/api/public')) {

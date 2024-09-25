@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import bcrypt from 'bcryptjs';
-import { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
+import { extractClientDetails, generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import sendEmail from '../utils/sendEmail';
@@ -10,7 +10,6 @@ import dotenv from "dotenv";
 import passport from 'passport';
 import { verifyToken } from '../utils/verifyToken';
 import { v4 as uuidv4 } from 'uuid';
-import { Document } from 'mongoose';
 
 dotenv.config();
 
@@ -52,7 +51,10 @@ export const register = async (req: Request, res: Response) => {
     // Generate the tokens
     const { sessionId, accessToken, refreshToken } = generateTokensByUserId(user.id);
 
-    await user.addSession(refreshToken, sessionId);
+    // Extract client details
+    const { ip, deviceName } = extractClientDetails(req);
+
+    await user.addSession(refreshToken, sessionId, ip, deviceName);
 
     // Send refresh token as an HTTP-only cookie
     res.cookie('refreshToken', refreshToken, {
@@ -96,7 +98,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
 
-    await existingUser.addSession(refreshToken, sessionId);
+    // Extract client details
+    const { ip, deviceName } = extractClientDetails(req);
+
+    await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
     // Send refresh token as an HTTP-only cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true, // Prevents client-side JS from accessing the cookie
@@ -123,7 +128,10 @@ export const googleLoginCallback = async (req: Request, res: Response) => {
   }
   const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
 
-  await existingUser.addSession(refreshToken, sessionId);
+  // Extract client details
+  const { ip, deviceName } = extractClientDetails(req);
+
+  await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
   // Send refresh token as an HTTP-only cookie
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true, // Prevents client-side JS from accessing the cookie
@@ -147,7 +155,10 @@ export const facebookLoginCallback = async (req: Request, res: Response) => {
   }
   const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
 
-  await existingUser.addSession(refreshToken, sessionId);
+  // Extract client details
+  const { ip, deviceName } = extractClientDetails(req);
+
+  await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
   // Send refresh token as an HTTP-only cookie
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true, // Prevents client-side JS from accessing the cookie
@@ -175,7 +186,7 @@ export const logout = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Invalid access token' });
     }
 
-    user.tokens = user.tokens.filter((tokenObj) => tokenObj.sessionId !== decoded.sessionId);
+    user.tokens = user.tokens.filter((tokenObj: IUser['tokens'][0]) => tokenObj.sessionId !== decoded.sessionId);
 
     await user.save();
 
@@ -197,7 +208,9 @@ export const logout = async (req: Request, res: Response) => {
 
 export const refresh = async (req: Request, res: Response) => {
   const refreshToken = req?.cookies?.refreshToken;
-
+  const forwarded = req.headers['x-forwarded-for'] as string;
+  const ip = req.ip;
+  console.debug('refresh', ip, forwarded);
   if (!refreshToken) {
     return res.status(403).json({ message: 'Refresh token is required' });
   }
@@ -217,7 +230,7 @@ export const refresh = async (req: Request, res: Response) => {
     }
 
     // Find the specific session object based on sessionId
-    const sessionToken = user.tokens.find((tokenObj) => tokenObj.refreshToken === refreshToken);
+    const sessionToken = user.tokens.find((tokenObj: IUser['tokens'][0]) => tokenObj.refreshToken === refreshToken);
 
     if (!sessionToken) {
       return res.status(403).json({ message: 'Session not found' });

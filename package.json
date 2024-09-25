@@ -2,12 +2,14 @@
   "name": "d-auth",
   "version": "1.0.0",
   "description": "express js middleware for authentication using passportjs",
-  "main": "src/index.js",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx tsc",
-    "start": "node ./dist/index.js",
-    "dev": "nodemon ./src/index.ts"
+    "dev": "nodemon ./src/app.ts",
+    "build": "rollup -c",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -23,10 +25,14 @@
   },
   "homepage": "https://github.com/dheerajshrivastva-dev/d-auth#readme",
   "dependencies": {
+    "dotenv": "^16.4.5",
+    "uuid": "^10.0.0"
+  },
+  "peerDependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
-    "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.3",
@@ -36,9 +42,12 @@
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
-    "uuid": "^10.0.0"
+    "ua-parser-js": "^1.0.39"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.3.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/express": "^4.17.21",
@@ -51,8 +60,13 @@
     "@types/passport-facebook": "^3.0.3",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-local": "^1.0.38",
+    "@types/ua-parser-js": "^0.7.39",
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.7",
+    "rollup": "^2.79.1",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-terser": "^7.0.2",
+    "rollup-plugin-typescript2": "^0.36.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
   }

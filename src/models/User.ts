@@ -9,9 +9,11 @@ export interface IUser extends Document {
   tokens: {
     sessionId?:string;
     refreshToken: string;
+    ip: string;
+    deviceName: string;
   }[];
 
-  addSession(refreshToken: string, sessionId: string): Promise<void>;
+  addSession(refreshToken: string, sessionId: string, ip: string, deviceName: string): Promise<void>;
 }
 
 const userSchema = new Schema<IUser>({
@@ -24,18 +26,29 @@ const userSchema = new Schema<IUser>({
     {
       sessionId: { type: String }, // Unique session identifier
       refreshToken: { type: String },
+      ip: { type: String, required: true },
+      deviceName: { type: String, required: true },
       createdAt: { type: Date, default: Date.now, expires: '7d' } // Automatically delete after 7 days
     }
   ]
 });
 
-userSchema.methods.addSession = async function (refreshToken: string, sessionId: string) {
-  if (this.tokens.length >= 10) {
-    // Remove the oldest session (FIFO) when max sessions are reached
-    this.tokens.shift();
+userSchema.methods.addSession = async function (refreshToken: string, sessionId: string, ip: string, deviceName: string) {
+  const existingSession = this.tokens.find((tokenObj: IUser['tokens'][0]) => tokenObj.ip === ip && tokenObj.deviceName === deviceName);
+  
+  if (existingSession) {
+    // Update the existing session
+    existingSession.refreshToken = refreshToken;
+    existingSession.sessionId = sessionId;
+  } else {
+    // Add new session
+    this.tokens.push({ sessionId, refreshToken, ip, deviceName });
+    
+    // Keep a max of 10 sessions
+    if (this.tokens.length > 10) {
+      this.tokens.shift(); // Remove the oldest session
+    }
   }
-
-  this.tokens.push({ sessionId, refreshToken });
   await this.save();
 };
 

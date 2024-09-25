@@ -1,14 +1,8 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as LocalStrategy } from 'passport-local';
-import bcrypt from 'bcryptjs';
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
-import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens';
-
-import { v4 as uuidv4 } from 'uuid';
-// import { Strategy as AppleStrategy } from 'passport-apple';
-// import jwt from 'jsonwebtoken';
 
 export interface AuthOptions {
   googleClientId: string;
@@ -19,32 +13,42 @@ export interface AuthOptions {
   facebookAppSecret: string;
   facebookCallbackURL: string;
 
-  // appleClientId: string;
-  // appleClientSecret: string;
-  // appleCallbackURL: string;
+  enableGoogleLogin?: boolean;
+  enableFacebookLogin?: boolean;
 }
 
+/**
+ * Configures Passport.js strategies for authentication.
+ *
+ * @param {AuthOptions} options - Authentication options, including Google, Facebook, and local strategy settings.
+ * @return {void}
+ */
 export function passportConfig(options: AuthOptions) {
   // Google OAuth strategy
-  passport.use(
-    new GoogleStrategy({
-      clientID: options.googleClientId!,
-      clientSecret: options.googleClientSecret!,
-      callbackURL: options.googleCallbackURL ||'/auth/google/callback'
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const user = {
-          googleId: profile.id,
-          accessToken,
-          email: profile.emails?.[0].value,
+  if (options.enableGoogleLogin) {
+    if (!options.googleClientId || !options.googleClientSecret || !options.googleCallbackURL) {
+      throw new Error('Google login is enabled but Google credentials are missing.');
+    }
+    passport.use(
+      new GoogleStrategy({
+        clientID: options.googleClientId!,
+        clientSecret: options.googleClientSecret!,
+        callbackURL: options.googleCallbackURL ||'/auth/google/callback'
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = {
+            googleId: profile.id,
+            accessToken,
+            email: profile.emails?.[0].value,
+          }
+          return done(null, user);
+        } catch (error) {
+          return done(error, false);
         }
-        return done(null, user);
-      } catch (error) {
-        return done(error, false);
-      }
-    })
-  );
+      })
+    );
+  }
 
   // Local Strategy for email/password login
   passport.use(
@@ -64,30 +68,35 @@ export function passportConfig(options: AuthOptions) {
   );
 
   // Facebook OAuth Strategy
-  passport.use(
-    new FacebookStrategy(
-      {
-        clientID: options.facebookAppId!,
-        clientSecret: options.facebookAppSecret!,
-        callbackURL: options.facebookCallbackURL || '/auth/facebook/callback',
-        profileFields: ['id', 'emails', 'name'] // Get email and name
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-
-          const user = {
-            facebookId: profile.id,
-            email: profile.emails?.[0].value,
-            accessToken,
-          };
-
-          return done(null, user);
-        } catch (error) {
-          return done(error, null);
+  if (options.enableFacebookLogin) {
+    if (!options.facebookAppId || !options.facebookAppSecret || !options.facebookCallbackURL) {
+      throw new Error('Facebook login is enabled but Facebook credentials are missing.');
+    }
+    passport.use(
+      new FacebookStrategy(
+        {
+          clientID: options.facebookAppId!,
+          clientSecret: options.facebookAppSecret!,
+          callbackURL: options.facebookCallbackURL || '/auth/facebook/callback',
+          profileFields: ['id', 'emails', 'name'] // Get email and name
+        },
+        async (accessToken, refreshToken, profile, done) => {
+          try {
+  
+            const user = {
+              facebookId: profile.id,
+              email: profile.emails?.[0].value,
+              accessToken,
+            };
+  
+            return done(null, user);
+          } catch (error) {
+            return done(error, null);
+          }
         }
-      }
-    )
-  );
+      )
+    );
+  }
 
   // Apple OAuth Strategy
   // passport.use(
