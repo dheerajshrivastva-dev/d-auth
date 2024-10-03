@@ -1,0 +1,5 @@
+src/                  # Source files should not be published
+node_modules/         # Exclude dependencies
+test/                 # Exclude test files
+tsconfig.json
+tsconfig.build.json
