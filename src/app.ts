@@ -9,6 +9,8 @@ const app: Express = express();
 const port = process.env.PORT || 3000;
 
 dAuthMiddleware(app, {
+  enableFacebookLogin: false,
+  enableGoogleLogin: true,
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
   googleClientId: process.env.GOOGLE_CLIENT_ID! || "",

@@ -1,6 +1,6 @@
 {
   "name": "@dheerajshrivastva-dev/d-auth",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "express js middleware for authentication using passportjs",
   "main": "src/index.cjs.js",
   "types": "src/index.d.ts",
@@ -9,7 +9,7 @@
     "build": "tsc --project tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "start": "node ./dist/index.js",
-    "dev": "nodemon ./src/index.ts"
+    "dev": "nodemon ./src/app.ts"
   },
   "files": [
     "dist",
@@ -32,7 +32,7 @@
     "session management"
   ],
   "author": "Dheeraj Kumar Shrivastva",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/dheerajshrivastva-dev/d-auth/issues"
   },
