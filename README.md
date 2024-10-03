@@ -1,6 +1,3 @@
-Here’s the updated `README.md` based on your new requirements:
-
-```md
 # ![Logo](https://github.com/user-attachments/assets/f6ffd1f8-2063-45bb-a121-aef155c9d974) D-Auth an Express Middleware
 
 An all-in-one authentication middleware for Express.js applications that supports JWT-based authentication, OAuth with Google, email-password login, refresh tokens, rate limiting, session management, and more. Designed to be flexible and secure, this middleware can be integrated into any Express app by simply passing the server instance.
