@@ -1,25 +1,38 @@
 {
-  "name": "d-auth",
-  "version": "1.0.0",
+  "name": "@dheerajshrivastva-dev/d-auth",
+  "version": "0.0.2",
   "description": "express js middleware for authentication using passportjs",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.cjs.js",
+  "types": "src/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon ./src/app.ts",
-    "build": "rollup -c",
-    "prepare": "npm run build"
+    "build": "tsc --project tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "start": "node ./dist/index.js",
+    "dev": "nodemon ./src/app.ts"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dheerajshrivastva-dev/d-auth.git"
   },
   "keywords": [
-    "auth"
+    "express",
+    "authentication",
+    "jwt",
+    "OAuth",
+    "middleware",
+    "Google login",
+    "email login",
+    "refresh tokens",
+    "session management"
   ],
   "author": "Dheeraj Kumar Shrivastva",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/dheerajshrivastva-dev/d-auth/issues"
   },

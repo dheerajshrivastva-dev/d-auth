@@ -13,8 +13,8 @@ export interface AuthOptions {
   facebookAppSecret: string;
   facebookCallbackURL: string;
 
-  enableGoogleLogin?: boolean;
-  enableFacebookLogin?: boolean;
+  enableGoogleLogin: boolean;
+  enableFacebookLogin: boolean;
 }
 
 /**
