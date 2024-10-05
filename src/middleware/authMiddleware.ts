@@ -18,6 +18,7 @@ dotenv.config();
 export interface DAuthOptions extends AuthOptions {
   sessionSecret: string;
   mongoDbUri: string;
+  authRouteinitials?: string;
 }
 
 /**
@@ -53,7 +54,7 @@ export interface DAuthOptions extends AuthOptions {
  *   res.send("Express + TypeScript Server");
  * });
  *
- * app.use('/api', authenticateToken);
+ * app.use('/api', authenticateApiMiddleware);
  *
  * app.get('/api/public/data', (req, res) => {
  *   res.send('This is a public route');
@@ -68,7 +69,7 @@ export interface DAuthOptions extends AuthOptions {
  *   console.log(`[server]: Server is running at http://localhost:${port}`);
  * });
  */
-export function dAuthMiddleware(app: Express, options: DAuthOptions) {
+export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
 
   if (!options.sessionSecret) {
     throw new Error('Session secret is required');
@@ -95,7 +96,7 @@ export function dAuthMiddleware(app: Express, options: DAuthOptions) {
   app.use(passport.session());
 
   // Attach auth routes here (e.g., /auth/login, /auth/register)
-  app.use('/auth', authRoutes);
+  app.use(options.authRouteinitials || '', authRoutes);
 
   // Error handling and other middleware logic can go here
 }
@@ -112,7 +113,7 @@ export interface AuthenticatedRequest extends Request {
  * @param {NextFunction} next - The next middleware or route handler in the stack.
  * @return {void}
  */
-export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateApiMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   // Skip /api/public/* routes
   if (req.path.startsWith('/api/public')) {
     return next();

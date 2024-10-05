@@ -40,7 +40,7 @@ Here's how to integrate the middleware into your Express app:
 
 ```typescript
 import express, { Express, Request, Response } from "express";
-import { AuthenticatedRequest, authenticateToken, dAuthMiddleware } from "./middleware/authMiddleware";
+import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
 
@@ -66,7 +66,7 @@ app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
-app.use('/api', authenticateToken);
+app.use('/api', authenticateApiMiddleware);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {
@@ -90,6 +90,8 @@ app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
 });
 ```
+
+Do not forget to export env "JWT_SECRET"
 
 ### Middleware Configuration
 

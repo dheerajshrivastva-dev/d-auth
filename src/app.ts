@@ -1,5 +1,5 @@
 import express, { Express, Request, Response } from "express";
-import { AuthenticatedRequest, authenticateToken, dAuthMiddleware } from "./middleware/authMiddleware";
+import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
 
@@ -19,13 +19,14 @@ dAuthMiddleware(app, {
   facebookAppId: process.env.FACEBOOK_APP_ID! || "",
   facebookAppSecret: process.env.FACEBOOK_APP_SECRET! || "",
   facebookCallbackURL: process.env.FACEBOOK_CALLBACK_URL! || "",
+  authRouteinitials: "/auth"
 });
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
-app.use('/api', authenticateToken);
+app.use('/api', authenticateApiMiddleware);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {

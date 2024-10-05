@@ -1,9 +1,10 @@
 {
   "name": "@dheerajshrivastva-dev/d-auth",
-  "version": "0.0.2",
+  "version": "1.0.2",
   "description": "express js middleware for authentication using passportjs",
-  "main": "src/index.cjs.js",
-  "types": "src/index.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc --project tsconfig.build.json",
@@ -12,7 +13,7 @@
     "dev": "nodemon ./src/app.ts"
   },
   "files": [
-    "dist",
+    "dist/**/*",
     "README.md",
     "LICENSE"
   ],

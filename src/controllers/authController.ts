@@ -171,39 +171,50 @@ export const facebookLoginCallback = async (req: Request, res: Response) => {
 }
 
 export const logout = async (req: Request, res: Response) => {
-  const { accessToken } = req.body;
+  // Extract refreshToken from cookies
+  const refreshToken = req.cookies.refreshToken;
 
-  if (!accessToken) {
-    return res.status(400).json({ message: 'Access token is required' });
+  if (!refreshToken) {
+    return res.status(400).json({ message: 'Refresh token is required' });
   }
 
   try {
-    const decoded = verifyToken(accessToken);
+    // Verify the refresh token to get the session details (sessionId, userId, etc.)
+    const decoded = verifyToken(refreshToken);
 
-    // Find user and remove only the session matching the current sessionId
+    // Find the user based on the decoded userId
     const user = await User.findOne({ _id: decoded.id });
     if (!user) {
-      return res.status(403).json({ message: 'Invalid access token' });
+      return res.status(403).json({ message: 'Invalid refresh token' });
     }
 
-    user.tokens = user.tokens.filter((tokenObj: IUser['tokens'][0]) => tokenObj.sessionId !== decoded.sessionId);
+    // Remove only the session matching the current sessionId
+    user.tokens = user.tokens.filter(
+      (tokenObj: IUser['tokens'][0]) => tokenObj.sessionId !== decoded.sessionId
+    );
 
+    // Save the updated user data
     await user.save();
 
-    // Clear cookies
-    res.clearCookie('refreshToken');
+    // Clear the refreshToken cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true, // For security
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production', // Secure flag only in production
+    });
 
+    // Logout from Passport (if using Passport.js)
     req.logout((err) => {
       if (err) {
         return res.status(500).json({ message: 'Failed to log out' });
       }
     });
 
-    return res.json({ message: 'Logout successful' });
+    return res.status(200).json({ message: 'Logout successful' });
   } catch (error) {
+    console.error('Logout error:', error);
     return res.status(500).json({ message: 'Error during logout' });
   }
-
 };
 
 export const refresh = async (req: Request, res: Response) => {
