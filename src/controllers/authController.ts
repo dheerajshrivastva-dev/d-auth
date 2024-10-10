@@ -10,13 +10,32 @@ import dotenv from "dotenv";
 import passport from 'passport';
 import { verifyToken } from '../utils/verifyToken';
 import { v4 as uuidv4 } from 'uuid';
+import AuthConfig from '../config/authConfig';
 
 dotenv.config();
 
-const handleRegister = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+const setRefreshTokenCookie = (res: Response, refreshToken: string) => {
+  const config = AuthConfig.getInstance().cookieOptions;
+  
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: config.httpOnly,
+    secure: config.secure,
+    sameSite: config.sameSite,
+    domain: config.domain,
+    path: config.path,
+    maxAge: config.maxAge,
+  });
+};
 
-}
+const clearRefreshTokenCookie = (res: Response) => {
+  const config = AuthConfig.getInstance().cookieOptions;
+
+  res.clearCookie('refreshToken', {
+    domain: config.domain,
+    path: config.path,
+  });
+};
+
 
 interface handleTokenReturnType {
   accessToken: string;
@@ -57,12 +76,7 @@ export const register = async (req: Request, res: Response) => {
     await user.addSession(refreshToken, sessionId, ip, deviceName);
 
     // Send refresh token as an HTTP-only cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true, // Prevents client-side JS from accessing the cookie
-      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
-      sameSite: 'strict', // Helps mitigate CSRF attacks
-      maxAge: REFRESH_TOKEN_EXP_TIME
-    });
+    setRefreshTokenCookie(res, refreshToken);
 
     // Return user and tokens
     res.status(201).json({ message: 'registration successful', user: {id: user.id, email: user.email, accessToken }});
@@ -103,12 +117,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
     // Send refresh token as an HTTP-only cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true, // Prevents client-side JS from accessing the cookie
-      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
-      sameSite: 'strict', // Helps mitigate CSRF attacks
-      maxAge: REFRESH_TOKEN_EXP_TIME
-    });
+    setRefreshTokenCookie(res, refreshToken);
 
     // Return user and tokens
     return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
@@ -133,12 +142,7 @@ export const googleLoginCallback = async (req: Request, res: Response) => {
 
   await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
   // Send refresh token as an HTTP-only cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true, // Prevents client-side JS from accessing the cookie
-    secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
-    sameSite: 'strict', // Helps mitigate CSRF attacks
-    maxAge: REFRESH_TOKEN_EXP_TIME
-  });
+  setRefreshTokenCookie(res, refreshToken);
 
   return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
 }
@@ -160,12 +164,7 @@ export const facebookLoginCallback = async (req: Request, res: Response) => {
 
   await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
   // Send refresh token as an HTTP-only cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true, // Prevents client-side JS from accessing the cookie
-    secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
-    sameSite: 'strict', // Helps mitigate CSRF attacks
-    maxAge: REFRESH_TOKEN_EXP_TIME
-  });
+  setRefreshTokenCookie(res, refreshToken);
 
   return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
 }
@@ -197,11 +196,7 @@ export const logout = async (req: Request, res: Response) => {
     await user.save();
 
     // Clear the refreshToken cookie
-    res.clearCookie('refreshToken', {
-      httpOnly: true, // For security
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production', // Secure flag only in production
-    });
+    clearRefreshTokenCookie(res)
 
     // Logout from Passport (if using Passport.js)
     req.logout((err) => {
@@ -258,12 +253,7 @@ export const refresh = async (req: Request, res: Response) => {
     await user.save();
 
     // Send refresh token as an HTTP-only cookie
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true, // Prevents client-side JS from accessing the cookie
-      secure: process.env.NODE_ENV === 'production', // Sends only over HTTPS
-      sameSite: 'strict', // Helps mitigate CSRF attacks
-      maxAge: REFRESH_TOKEN_EXP_TIME
-    });
+    setRefreshTokenCookie(res, newRefreshToken);
 
     return res.json({ user: {id: user.id, email: user.email, accessToken: newAccessToken  }});
   } catch (error) {

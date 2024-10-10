@@ -50,16 +50,11 @@ const app: Express = express();
 const port = process.env.PORT || 3000;
 
 dAuthMiddleware(app, {
+  enableFacebookLogin: false,
+  enableGoogleLogin: true,
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
-  enableGoogleLogin: true,
-  enableFacebookLogin: true,
-  googleClientId: process.env.GOOGLE_CLIENT_ID! || "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET! || "",
-  googleCallbackURL: process.env.GOOGLE_CALLBACK_URL! || "",
-  facebookAppId: process.env.FACEBOOK_APP_ID! || "",
-  facebookAppSecret: process.env.FACEBOOK_APP_SECRET! || "",
-  facebookCallbackURL: process.env.FACEBOOK_CALLBACK_URL! || "",
+  authRouteinitials: "/auth"
 });
 
 app.get("/", (req: Request, res: Response) => {
@@ -101,9 +96,12 @@ Pass a configuration object to the middleware to control behavior:
 dAuthMiddleware(app, {
   jwtSecret: 'your-jwt-secret',
   mongoUri: 'mongodb-connection-uri',
-  googleClientId: 'your-google-client-id',
-  googleClientSecret: 'your-google-client-secret',
   enableGoogleLogin: true,
+  googleLoginDetails: {
+    googleClientId: 'your-google-client-id',
+    googleClientSecret: 'your-google-client-secret',
+    googleCallbackURL: "/auth/google/callback"
+  }
   enableFacebookLogin: false,  // Enable/disable social login providers
 });
 ```
@@ -116,11 +114,12 @@ You can customize the behavior of the middleware by providing the following conf
 |-------------------------|----------|-----------------------------------------------------------------------------|
 | `jwtSecret`              | `string` | Secret used for signing JWT tokens.                                         |
 | `mongoUri`               | `string` | MongoDB connection URI to store session and user data.                      |
-| `googleClientId`         | `string` | Google OAuth client ID for social login.                                    |
-| `googleClientSecret`     | `string` | Google OAuth client secret.                                                 |
+| `googleLoginDetails`     | `object` | googleClientId, googleClientSecret, googleCallbackURL                       |
+| `facebookLoginDetails`   | `object` | facebookClientId, facebookClientSecret, facebookCallbackURL                 |
 | `enableGoogleLogin`      | `boolean`| Enable or disable Google social login.                                      |
 | `enableFacebookLogin`    | `boolean`| Enable or disable Facebook social login.                                    |
 | `deviceTracking`         | `boolean`| Track device and IP information for each login session.                     |
+| `cookieOptions`          | `object` | Add cookies configuratins                                                   |
 
 ## Examples
 
@@ -136,6 +135,13 @@ dAuthMiddleware(app, {
   jwtSecret: 'your-jwt-secret',
   mongoUri: 'mongodb://localhost:27017/myapp',
   enableGoogleLogin: false,
+  cookieOptions: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000,
+  }
 });
 
 app.post('/login', authenticateMiddleware, (req, res) => {

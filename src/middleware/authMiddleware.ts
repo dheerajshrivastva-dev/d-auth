@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction, Express } from 'express';
-import express from 'express';
 import session from 'express-session';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { JwtPayload } from 'jsonwebtoken';
 import User from '../models/User';
 
 import { AuthOptions, passportConfig } from '../passport/passportConfig';
@@ -11,7 +10,7 @@ import mongoose from 'mongoose';
 
 import dotenv from "dotenv";
 import { verifyToken } from '../utils/verifyToken';
-import cookieParser from 'cookie-parser';
+import AuthConfig, { CookieOptions } from '../config/authConfig';
 
 dotenv.config();
 
@@ -19,6 +18,7 @@ export interface DAuthOptions extends AuthOptions {
   sessionSecret: string;
   mongoDbUri: string;
   authRouteinitials?: string;
+  cookieOptions?: CookieOptions;
 }
 
 /**
@@ -71,6 +71,12 @@ export interface DAuthOptions extends AuthOptions {
  */
 export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
 
+  const configInstance = AuthConfig.getInstance();
+
+  if (options.cookieOptions) {
+    configInstance.setCookieOptions(options.cookieOptions);
+  }
+
   if (!options.sessionSecret) {
     throw new Error('Session secret is required');
   }
@@ -84,9 +90,6 @@ export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
-  // Middleware
-  app.use(express.json());
-  app.use(cookieParser());
   app.use(session({ secret: options.sessionSecret!, resave: false, saveUninitialized: true }));
   // Initialize Passport with the configuration
   passportConfig(options);

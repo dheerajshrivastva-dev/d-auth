@@ -2,23 +2,30 @@ import express, { Express, Request, Response } from "express";
 import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
+
+// Middleware
+app.use(
+  cors({
+    origin:"*" , 
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(cookieParser());
+
 
 dAuthMiddleware(app, {
   enableFacebookLogin: false,
   enableGoogleLogin: true,
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
-  googleClientId: process.env.GOOGLE_CLIENT_ID! || "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET! || "",
-  googleCallbackURL: process.env.GOOGLE_CALLBACK_URL! || "",
-  facebookAppId: process.env.FACEBOOK_APP_ID! || "",
-  facebookAppSecret: process.env.FACEBOOK_APP_SECRET! || "",
-  facebookCallbackURL: process.env.FACEBOOK_CALLBACK_URL! || "",
   authRouteinitials: "/auth"
 });
 
