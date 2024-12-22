@@ -4,17 +4,23 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import User from '../models/User';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 
-export interface AuthOptions {
+interface GoogleLoginDetails {
   googleClientId: string;
   googleClientSecret: string;
   googleCallbackURL: string;
+}
 
+interface FacebookLoginDetails {
   facebookAppId: string;
   facebookAppSecret: string;
   facebookCallbackURL: string;
+}
 
+export interface AuthOptions {
   enableGoogleLogin: boolean;
   enableFacebookLogin: boolean;
+  googleLoginDetails?: GoogleLoginDetails;
+  facebookLoginDetails?: FacebookLoginDetails;
 }
 
 /**
@@ -25,15 +31,15 @@ export interface AuthOptions {
  */
 export function passportConfig(options: AuthOptions) {
   // Google OAuth strategy
-  if (options.enableGoogleLogin) {
-    if (!options.googleClientId || !options.googleClientSecret || !options.googleCallbackURL) {
+  if (options.enableGoogleLogin && options.googleLoginDetails) {
+    if (!options.googleLoginDetails.googleClientId || !options.googleLoginDetails.googleClientSecret || !options.googleLoginDetails.googleCallbackURL) {
       throw new Error('Google login is enabled but Google credentials are missing.');
     }
     passport.use(
       new GoogleStrategy({
-        clientID: options.googleClientId!,
-        clientSecret: options.googleClientSecret!,
-        callbackURL: options.googleCallbackURL ||'/auth/google/callback'
+        clientID: options.googleLoginDetails.googleClientId!,
+        clientSecret: options.googleLoginDetails.googleClientSecret!,
+        callbackURL: options.googleLoginDetails.googleCallbackURL ||'/auth/google/callback'
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -68,16 +74,16 @@ export function passportConfig(options: AuthOptions) {
   );
 
   // Facebook OAuth Strategy
-  if (options.enableFacebookLogin) {
-    if (!options.facebookAppId || !options.facebookAppSecret || !options.facebookCallbackURL) {
+  if (options.enableFacebookLogin && options.facebookLoginDetails) {
+    if (!options.facebookLoginDetails.facebookAppId || !options.facebookLoginDetails.facebookAppSecret || !options.facebookLoginDetails.facebookCallbackURL) {
       throw new Error('Facebook login is enabled but Facebook credentials are missing.');
     }
     passport.use(
       new FacebookStrategy(
         {
-          clientID: options.facebookAppId!,
-          clientSecret: options.facebookAppSecret!,
-          callbackURL: options.facebookCallbackURL || '/auth/facebook/callback',
+          clientID: options.facebookLoginDetails.facebookAppId!,
+          clientSecret: options.facebookLoginDetails.facebookAppSecret!,
+          callbackURL: options.facebookLoginDetails.facebookCallbackURL || '/auth/facebook/callback',
           profileFields: ['id', 'emails', 'name'] // Get email and name
         },
         async (accessToken, refreshToken, profile, done) => {

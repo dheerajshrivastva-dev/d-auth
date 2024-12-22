@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction, Express } from 'express';
-import express from 'express';
 import session from 'express-session';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { JwtPayload } from 'jsonwebtoken';
 import User from '../models/User';
 
 import { AuthOptions, passportConfig } from '../passport/passportConfig';
@@ -11,13 +10,17 @@ import mongoose from 'mongoose';
 
 import dotenv from "dotenv";
 import { verifyToken } from '../utils/verifyToken';
-import cookieParser from 'cookie-parser';
+import AuthConfig, { CookieOptions, NodeMailerConfig, CompanyDetails } from '../config/authConfig';
 
 dotenv.config();
 
 export interface DAuthOptions extends AuthOptions {
   sessionSecret: string;
   mongoDbUri: string;
+  nodeMailerConfig: NodeMailerConfig;
+  companyDetails: CompanyDetails;
+  authRouteinitials?: string;
+  cookieOptions?: CookieOptions;
 }
 
 /**
@@ -53,7 +56,7 @@ export interface DAuthOptions extends AuthOptions {
  *   res.send("Express + TypeScript Server");
  * });
  *
- * app.use('/api', authenticateToken);
+ * app.use('/api', authenticateApiMiddleware);
  *
  * app.get('/api/public/data', (req, res) => {
  *   res.send('This is a public route');
@@ -68,7 +71,16 @@ export interface DAuthOptions extends AuthOptions {
  *   console.log(`[server]: Server is running at http://localhost:${port}`);
  * });
  */
-export function dAuthMiddleware(app: Express, options: DAuthOptions) {
+export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
+
+  const configInstance = AuthConfig.getInstance();
+
+  configInstance.setCompanyDetails(options.companyDetails);
+  configInstance.setNodeMailerConfig(options.nodeMailerConfig);
+
+  if (options.cookieOptions) {
+    configInstance.setCookieOptions(options.cookieOptions);
+  }
 
   if (!options.sessionSecret) {
     throw new Error('Session secret is required');
@@ -83,9 +95,6 @@ export function dAuthMiddleware(app: Express, options: DAuthOptions) {
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
-  // Middleware
-  app.use(express.json());
-  app.use(cookieParser());
   app.use(session({ secret: options.sessionSecret!, resave: false, saveUninitialized: true }));
   // Initialize Passport with the configuration
   passportConfig(options);
@@ -95,7 +104,7 @@ export function dAuthMiddleware(app: Express, options: DAuthOptions) {
   app.use(passport.session());
 
   // Attach auth routes here (e.g., /auth/login, /auth/register)
-  app.use('/auth', authRoutes);
+  app.use(options.authRouteinitials || '', authRoutes);
 
   // Error handling and other middleware logic can go here
 }
@@ -112,7 +121,7 @@ export interface AuthenticatedRequest extends Request {
  * @param {NextFunction} next - The next middleware or route handler in the stack.
  * @return {void}
  */
-export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateApiMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   // Skip /api/public/* routes
   if (req.path.startsWith('/api/public')) {
     return next();

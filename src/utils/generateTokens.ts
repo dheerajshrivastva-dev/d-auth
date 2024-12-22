@@ -5,6 +5,7 @@ import UAParser from 'ua-parser-js';
 
 export const REFRESH_TOKEN_EXP_TIME = 7*24*60*60*1000;
 export const ACCESS_TOKEN_EXP_TIME = 15*60*1000;
+export const LOGIN_SESSION_EXP_TIME = 7*24*60*60*1000;
 
 dotenv.config();
 

@@ -42,7 +42,7 @@ Here's how to integrate the middleware into your Express app:
 
 ```typescript
 import express, { Express, Request, Response } from "express";
-import { AuthenticatedRequest, authenticateToken, dAuthMiddleware } from "./middleware/authMiddleware";
+import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
 
@@ -52,23 +52,18 @@ const app: Express = express();
 const port = process.env.PORT || 3000;
 
 dAuthMiddleware(app, {
+  enableFacebookLogin: false,
+  enableGoogleLogin: true,
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
-  enableGoogleLogin: true,
-  enableFacebookLogin: true,
-  googleClientId: process.env.GOOGLE_CLIENT_ID! || "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET! || "",
-  googleCallbackURL: process.env.GOOGLE_CALLBACK_URL! || "",
-  facebookAppId: process.env.FACEBOOK_APP_ID! || "",
-  facebookAppSecret: process.env.FACEBOOK_APP_SECRET! || "",
-  facebookCallbackURL: process.env.FACEBOOK_CALLBACK_URL! || "",
+  authRouteinitials: "/auth"
 });
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
-app.use('/api', authenticateToken);
+app.use('/api', authenticateApiMiddleware);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {
@@ -93,18 +88,38 @@ app.listen(port, () => {
 });
 ```
 
+Do not forget to export env "JWT_SECRET"
+
 ### Middleware Configuration
 
 Pass a configuration object to the middleware to control behavior:
 
 ```typescript
 dAuthMiddleware(app, {
-  jwtSecret: 'your-jwt-secret',
-  mongoUri: 'mongodb-connection-uri',
-  googleClientId: 'your-google-client-id',
-  googleClientSecret: 'your-google-client-secret',
+  enableFacebookLogin: false,
   enableGoogleLogin: true,
-  enableFacebookLogin: false,  // Enable/disable social login providers
+  mongoDbUri: process.env.MONGO_URI!,
+  sessionSecret: process.env.SESSION_SECRET!,
+  authRouteinitials: "/auth",
+  companyDetails: {
+    name: "D-Auth Tester",
+    website: "https://d-auth.com",
+    contact: "https://d-auth.com/contact",
+    privacyPolicy: "https://d-auth.com/privacy-policy",
+    termsOfService: "https://d-auth.com/terms-of-service",
+    support: "https://d-auth.com/support",
+    address: "123 Main Street, USA"
+  },
+  nodeMailerConfig: {
+    auth: {
+      user: process.env.EMAIL_USERNAME!,
+      pass: process.env.EMAIL_PASSWORD!,
+    },
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: true
+  }
 });
 ```
 
@@ -116,11 +131,14 @@ You can customize the behavior of the middleware by providing the following conf
 |-------------------------|----------|-----------------------------------------------------------------------------|
 | `jwtSecret`              | `string` | Secret used for signing JWT tokens.                                         |
 | `mongoUri`               | `string` | MongoDB connection URI to store session and user data.                      |
-| `googleClientId`         | `string` | Google OAuth client ID for social login.                                    |
-| `googleClientSecret`     | `string` | Google OAuth client secret.                                                 |
+| `googleLoginDetails`     | `object` | googleClientId, googleClientSecret, googleCallbackURL                       |
+| `facebookLoginDetails`   | `object` | facebookClientId, facebookClientSecret, facebookCallbackURL                 |
 | `enableGoogleLogin`      | `boolean`| Enable or disable Google social login.                                      |
 | `enableFacebookLogin`    | `boolean`| Enable or disable Facebook social login.                                    |
 | `deviceTracking`         | `boolean`| Track device and IP information for each login session.                     |
+| `cookieOptions`          | `object` | Add cookies configuratins                                                   |
+| `nodeMailerConfig`       | `object` | Nodemailer options to setup emails                                          |
+| `companyDetails`         | `object` | Add company details                                                         |
 
 ## Examples
 
@@ -136,6 +154,32 @@ dAuthMiddleware(app, {
   jwtSecret: 'your-jwt-secret',
   mongoUri: 'mongodb://localhost:27017/myapp',
   enableGoogleLogin: false,
+  cookieOptions: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+  companyDetails: {
+    name: "D-Auth Tester",
+    website: "https://d-auth.com",
+    contact: "https://d-auth.com/contact",
+    privacyPolicy: "https://d-auth.com/privacy-policy",
+    termsOfService: "https://d-auth.com/terms-of-service",
+    support: "https://d-auth.com/support",
+    address: "123 Main Street, USA"
+  },
+  nodeMailerConfig: {
+    auth: {
+      user: process.env.EMAIL_USERNAME!,
+      pass: process.env.EMAIL_PASSWORD!,
+    },
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: true
+  }
 });
 
 app.post('/login', authenticateMiddleware, (req, res) => {
