@@ -66,7 +66,7 @@ const userSchema = new Schema<IUser>({
   phone: { type: String },
   isVerified: { type: Boolean, default: false, required: true },
   isAdmin: { type: Boolean, default: false, required: true },
-});
+}, { timestamps: true });
 
 userSchema.methods.addSession = async function (refreshToken: string, sessionId: string, ip: string, deviceName: string) {
   const existingSession = this.tokens.find((tokenObj: IUser['tokens'][0]) => tokenObj.ip === ip && tokenObj.deviceName === deviceName);

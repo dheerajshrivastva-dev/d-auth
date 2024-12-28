@@ -43,22 +43,20 @@ export interface CompanyDetails {
   support?: string;
 }
 
+export interface socialLoginRedirectUrl {
+  successUrl: string;
+  failureUrl: string;
+}
+
 class AuthConfig {
   private static _instance: AuthConfig | null = null;
   cookieOptions: CookieOptions;
   nodeMailerConfig: NodeMailerConfig;
+  socialLoginRedirectUrl?: socialLoginRedirectUrl;
   /**
    * Default company name
    */
-  companyDetails: CompanyDetails = {
-    name: "D-Auth",
-    website: "https://d-auth.com",
-    contact: "https://d-auth.com/contact",
-    privacyPolicy: "https://d-auth.com/privacy-policy",
-    termsOfService: "https://d-auth.com/terms-of-service",
-    support: "https://d-auth.com/support",
-    address: "123 Main Street, Sheohar, Bihar 844416"
-  }
+  companyDetails: CompanyDetails
 
   private constructor() {
     // Set default values
@@ -88,6 +86,11 @@ class AuthConfig {
       support: "https://d-auth.com/support",
       address: "123 Main Street, Sheohar, Bihar 844416"
     }
+
+    this.socialLoginRedirectUrl = {
+      successUrl: process.env.SOCIAL_LOGIN_SUCCESS_URL!,
+      failureUrl: process.env.SOCIAL_LOGIN_FAILURE_URL!
+    }
   }
 
   // Singleton pattern to get a single instance of AuthConfig
@@ -110,7 +113,10 @@ class AuthConfig {
   setCookieOptions(options: CookieOptions) {
     this.cookieOptions = { ...this.cookieOptions, ...options };
   }
+
+  setSuccessUrl(options: socialLoginRedirectUrl) {
+    this.socialLoginRedirectUrl = options;
+  }
 }
 
 export default AuthConfig;
-

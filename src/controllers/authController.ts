@@ -1,14 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import bcrypt from 'bcryptjs';
-import { extractClientDetails, generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
+import { extractClientDetails, generateAccessToken, generateRefreshToken, generateTokensByUserId, REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 import dotenv from "dotenv";
 import passport from 'passport';
 import { verifyToken } from '../utils/verifyToken';
-import { v4 as uuidv4 } from 'uuid';
 import AuthConfig from '../config/authConfig';
 import sendEmail from '../services/sendEmail';
 import userValidatons from '../validations/userValidatons';
@@ -38,22 +37,6 @@ const clearRefreshTokenCookie = (res: Response) => {
   });
 };
 
-
-interface handleTokenReturnType {
-  accessToken: string;
-  sessionId: string;
-  refreshToken: string;
-}
-const generateTokensByUserId = (userId: string): handleTokenReturnType => {
-  // Generate unique sessionId for this session
-  const sessionId = uuidv4();
-
-  const accessToken = generateAccessToken(userId, sessionId);
-  const refreshToken = generateRefreshToken(userId, sessionId);
-
-  return {sessionId, refreshToken, accessToken};
-}
-
 export default {
   register: async (req: Request, res: Response) => {
     try {
@@ -69,19 +52,15 @@ export default {
         return res.status(400).json({ message: 'User already exists' });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await User.create({
+      await User.create({
         ...req.body,
         password: hashedPassword,
       });
-      // Generate the tokens
-      const { sessionId, accessToken, refreshToken } = generateTokensByUserId(user.id);
-      // Extract client details
-      const { ip, deviceName } = extractClientDetails(req);
-      await user.addSession(refreshToken, sessionId, ip, deviceName);
-      // Send refresh token as an HTTP-only cookie
-      setRefreshTokenCookie(res, refreshToken);
+
       // Return user and tokens
-      res.status(201).json({ message: 'registration successful', user: {id: user.id, email: user.email, accessToken }});
+      return res.status(201).send(
+        new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, message: "User registered successfully"})
+      );
     } catch (error) {
       console.debug(error);
       res.status(500).json({ error: JSON.stringify(error) });
@@ -90,9 +69,10 @@ export default {
   
   login: async (req: Request, res: Response, next: NextFunction) => {
     // handled by Passport LocalStrategy
+    console.debug("login", req.body);
     passport.authenticate('local', { session: false }, async (err: any, user: {email: string, password: string}, info: any) => {
       if (!user?.email || !user?.password) {
-        return res.status(400).json({ message: info ? info.message : 'Incorrect email or password.' });
+        return res.status(401).json({ message: info ? info.message : 'Incorrect email or password.' });
       }
   
       const existingUser = await User.findOne({ email: user.email });
@@ -132,13 +112,17 @@ export default {
   },
   
   googleLoginCallback: async (req: Request, res: Response) => {
-    const user = req.user as {googleId: string, email: string};
+    const user = req.user as {googleId: string, email: string, profileUrl?: string, displayName?: string};
     let existingUser = await User.findOne({ googleId: user?.googleId });
-  
+    console.debug("req for google redirect", req.url);
+    
     if (!existingUser) {
       existingUser = await User.create({
         email: user?.email,
         googleId: user?.googleId,
+        profileUrl: user?.profileUrl,
+        firstName: user?.displayName?.split(" ")[0],
+        lastName: user?.displayName?.split(" ")[1],
       });
     }
     const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);

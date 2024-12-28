@@ -2,9 +2,11 @@ import { Request, Response, NextFunction, Express } from 'express';
 import session from 'express-session';
 import { JwtPayload } from 'jsonwebtoken';
 import User from '../models/User';
-
-import { AuthOptions, passportConfig } from '../passport/passportConfig';
 import passport from 'passport';
+import bcrypt from 'bcryptjs';
+import { Strategy as LocalStrategy } from 'passport-local';
+
+import { AuthOptions } from '../passport/passportConfig';
 import authRoutes from '../routes/authRoutes';
 import mongoose from 'mongoose';
 
@@ -21,6 +23,10 @@ export interface DAuthOptions extends AuthOptions {
   companyDetails: CompanyDetails;
   authRouteinitials?: string;
   cookieOptions?: CookieOptions;
+  socialLoginRedirectUrl?: {
+    successUrl: string;
+    failureUrl: string;
+  },
 }
 
 /**
@@ -95,13 +101,81 @@ export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
-  app.use(session({ secret: options.sessionSecret!, resave: false, saveUninitialized: true }));
-  // Initialize Passport with the configuration
-  passportConfig(options);
-
+  
   // Initialize Passport and session management middleware
   app.use(passport.initialize());
-  app.use(passport.session());
+  app.use(passport.authenticate('session'));
+
+  passport.serializeUser((user: any, done) => {
+    console.debug('serializeUser', user.id)
+    return process.nextTick(function() {
+      done(null, user.id);
+    });
+  });
+
+  passport.deserializeUser((id: string, done) => {
+    console.debug('deserializeUser', id)
+    return process.nextTick(async function() {
+      try {
+        const existingUser = await User.findById(id);
+        const user = {
+          id: existingUser?.id,
+          email: existingUser?.email,
+          firstName: existingUser?.firstName,
+          lastName: existingUser?.lastName,
+          isVerified: existingUser?.isVerified,
+          isAdmin: existingUser?.isAdmin,
+          profileUrl: existingUser?.profileUrl
+
+        }
+        return done(null, user);
+      } catch {
+        return done(new Error('No user associated with this id'));
+      }
+    });
+  });
+  // Initialize Passport with the configuration
+  passport.use("local",
+    new LocalStrategy({ passReqToCallback: true, usernameField: 'email' }, async (req, email, password, done) => {
+      try {
+        const existingUser = await User.findOne({ email: email });
+        if (!existingUser) {
+          return done(null, false, { message: 'No user found with the provided credentials. Please create register.' });
+        }
+
+        const { password: userPassword } = existingUser;
+
+        if (!userPassword) {
+          return done(null, false, { message: 'Your account password is not setup, please forget your password' });
+        }
+
+        const isMatch = await bcrypt.compare(password, userPassword);
+
+        if (!isMatch) {
+          return done(null, false, { message: 'Incorrect email or password.' });
+        }
+
+        const user = {
+          id: existingUser.id,
+          email: existingUser.email,
+          firstName: existingUser.firstName,
+          lastName: existingUser.lastName,
+          isVerified: existingUser.isVerified,
+          isAdmin: existingUser.isAdmin,
+          profileUrl: existingUser.profileUrl
+
+        }
+
+        console.debug("sdcsdc", user.id)
+
+        // Return user and tokens
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
+
+    })
+  );
 
   // Attach auth routes here (e.g., /auth/login, /auth/register)
   app.use(options.authRouteinitials || '', authRoutes);

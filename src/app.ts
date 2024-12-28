@@ -4,16 +4,34 @@ import dotenv from "dotenv";
 import path from 'path';
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import session from "express-session";
+import { REFRESH_TOKEN_EXP_TIME } from "./utils/generateTokens";
 
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
+app.use(session({
+    name: 'd-auth-session',
+    secret: [process.env.SESSION_SECRET!],
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      httpOnly: true,
+      secure: false, // Use secure cookies (HTTPS)
+      sameSite: 'lax', // Default to lax
+      path: '/',
+      maxAge: REFRESH_TOKEN_EXP_TIME
+    }
+  }));
+
+const allowlist = ['http://localhost:5173', 'https://web.bevarc.com/', 'https://bevarc.com/', "*"];
+
 // Middleware
 app.use(
   cors({
-    origin:"*" , 
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -24,6 +42,11 @@ app.use(cookieParser());
 dAuthMiddleware(app, {
   enableFacebookLogin: false,
   enableGoogleLogin: true,
+  googleLoginDetails: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID!,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    googleCallbackURL: "/auth/google/callback",
+  },
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
   authRouteinitials: "/auth",
@@ -45,15 +68,14 @@ dAuthMiddleware(app, {
     host: 'smtp.gmail.com',
     port: 587,
     secure: true
-  }
+  },
+  onlyUseSession: true,
 
 });
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
-
-app.use('/api', authenticateApiMiddleware);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {
