@@ -2,18 +2,17 @@
 
 
 
-An all-in-one authentication middleware for Express.js applications that supports JWT-based authentication, OAuth with Google, email-password login, refresh tokens, rate limiting, session management, and more. Designed to be flexible and secure, this middleware can be integrated into any Express app by simply passing the server instance.
+An all-in-one authentication middleware for Express.js applications that supports Username password, OAuth with Google, rate limiting, session management, and more. Designed to be flexible and secure, this middleware can be integrated into any Express app by simply passing the server instance at start.
 
 ## Features
 
 - **Local and Google OAuth login**: Seamless integration of traditional login and social login using Google.
-- **JWT-based authentication**: Secure short-lived and long-lived tokens for session handling.
-- **One user, one session**: Ensures users only have one active session at a time.
-- **Device tracking**: Track devices, IP addresses, and session data.
 - **Rate limiting**: Protect against abuse with predefined rate limits based on IP and device fingerprints.
-- **CAPTCHA protection**: *Coming soon* - CAPTCHA verification triggered after too many failed login attempts.
-- **Secure session management**: Persistent session management with refresh tokens.
+- **Secure session management**: Persistent session management with mongodb connect.
 - **MongoDB integration**: MongoDB is required to store user sessions and authentication data.
+- **Users query**: It export user management routes that can be used to do simple user based modificatiom
+- **Admin user role**: It has admin user role that can create, update and dekete users. User has to be verified admin to perform this. Use authenticate middleware from d-auth to authenticate user queries.
+- **Forget password**: User can forget password with otp, otp send using nodeMailer
 
 ## Table of Contents
 
@@ -64,6 +63,9 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use('/api', authenticateApiMiddleware);
+
+// Optional
+app.use('/api', userRouter);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {
@@ -202,16 +204,6 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     // Successful authentication
     res.redirect('/');
   });
-```
-
-### JWT Refresh Token
-
-```typescript
-app.post('/refresh-token', (req, res) => {
-  const { refreshToken } = req.body;
-  const newTokens = generateTokens(refreshToken);
-  res.json(newTokens);
-});
 ```
 
 ### Route Structure
