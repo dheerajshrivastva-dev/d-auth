@@ -13,6 +13,7 @@ import AuthConfig from '../config/authConfig';
 import sendEmail from '../services/sendEmail';
 import userValidatons from '../validations/userValidatons';
 import { HTTPResponse, HttpStatus } from '../httpResponse';
+import { AuthenticatedRequest } from '../middleware/authMiddleware';
 
 dotenv.config();
 
@@ -28,7 +29,28 @@ export default {
     }
     //#endregion
     try {
-      const user = await User.findOneAndUpdate({ _id: body.userId }, body, { new: true });
+      await User.findOneAndUpdate({ _id: body.userId }, body, { new: true });
+      const user = await User.findOne({ _id: body.userId }, { password: 0 });
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, data: user})
+      );
+    } catch (error) {
+      console.debug(error);
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: JSON.stringify(error) || "Something went wrong"})
+      );
+    }
+  },
+
+  getUser: async (req: Request, res: Response) => {
+    const id = req.params.id;
+    try {
+      if (!id) {
+        return res.status(200).send(
+          new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: "id is required"})
+        );
+      }
+      const user = await User.findOne({ _id: id }, { password: 0 });
       return res.status(200).send(
         new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, data: user})
       );
@@ -85,7 +107,7 @@ export default {
     }
   },
 
-  updateAdminStatues: async (req: Request, res: Response) => {
+  updateAdminStatues: async (req: AuthenticatedRequest, res: Response) => {
     const body = req.body;
     try {
       const { error } = userValidatons.updateAdminStatusValidation.validate(body);
@@ -95,6 +117,11 @@ export default {
         );
       }
       const user = await User.findOne({ _id: body.userId }) as IUser;
+      if (req.user?.id === body.userId) {
+        return res.status(403).send(
+          new HTTPResponse({statusCode: HttpStatus.FORBIDDEN.code, httpStatus: HttpStatus.FORBIDDEN.status, message: "Self update is not allowed"})
+        );
+      }
       user.isAdmin = !!body.makeAdmin;
       await user.save();
       return res.status(200).send(
@@ -106,5 +133,72 @@ export default {
         new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: JSON.stringify(error) || "Something went wrong"})
       );
     }
-  }
+  },
+
+  create: async (req: Request, res: Response) => {
+    const body = req.body;
+    //#region verify payload
+    const { error } = userValidatons.createUserValidation.validate(body);
+    if (error) {
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: error.message})
+      );
+    }
+    //#endregion
+    try {
+      const user = await User.create(body);
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, data: user})
+      );
+    } catch (error) {
+      console.debug(error);
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: JSON.stringify(error) || "Something went wrong"})
+      );
+    }
+  },
+
+  me: async (req: AuthenticatedRequest, res: Response) => {
+    const id = req.user.id;
+    try {
+      if (!id) {
+        return res.status(200).send(
+          new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: "id is required"})
+        );
+      }
+      const user = await User.findOne({ _id: id }, { password: 0 });
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, data: user})
+      );
+    } catch (error) {
+      console.debug(error);
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: JSON.stringify(error) || "Something went wrong"})
+      );
+    }
+  },
+
+  updateMe: async (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body;
+    //#region verify payload
+    const { error } = userValidatons.updateMeValidation.validate(body);
+    if (error) {
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: error.message})
+      );
+    }
+    //#endregion
+    try {
+      await User.findOneAndUpdate({ _id: req.user.id }, body);
+      const user = await User.findOne({ _id: req.user.id }, { password: 0 });
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, data: user})
+      );
+    } catch (error) {
+      console.debug(error);
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: JSON.stringify(error) || "Something went wrong"})
+      );
+    }
+  },
 }

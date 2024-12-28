@@ -88,46 +88,26 @@ export default {
     }
   },
   
-  login: async (req: Request, res: Response, next: NextFunction) => {
-    // handled by Passport LocalStrategy
-    passport.authenticate('local', { session: false }, async (err: any, user: {email: string, password: string}, info: any) => {
-      if (!user?.email || !user?.password) {
-        return res.status(400).json({ message: info ? info.message : 'Incorrect email or password.' });
+  login: (req: Request, res: Response, next: NextFunction) => {
+    const { error } = userValidatons.loginValidation.validate(req.body);
+    if (error) {
+      return res.status(200).send(
+        new HTTPResponse({statusCode: HttpStatus.WARNING.code, httpStatus: HttpStatus.WARNING.status, message: error.message})
+      );
+    }
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(401).json({ message: info ? info.message : 'Incorrect email or password.' });
       }
-  
-      const existingUser = await User.findOne({ email: user.email });
-    
-      // If the user does not exist
-      if (!existingUser) {
-        return res.status(400).json({ message: 'Incorrect email or password.'});
+      if (!user) {
+        return res.status(401).json({ message: info ? info.message : 'No user found with the provided credentials. Please create register' });
       }
-  
-      // Check if the password matches
-      if (!existingUser.password) {
-        return res.status(400).json({ message: 'Please forget your password.' });
-      }
-  
-      const isMatch = await bcrypt.compare(user.password, existingUser.password);
-      if (!isMatch) {
-        return res.status(400).json({ message: 'Incorrect email or password.' });
-      }
-
-      if (!existingUser.isVerified) {
-        return res.status(200).json({ message: 'Your account is not active, please contact admin' });
-      }
-  
-      const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
-  
-      // Extract client details
-      const { ip, deviceName } = extractClientDetails(req);
-  
-      await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
-      // Send refresh token as an HTTP-only cookie
-      setRefreshTokenCookie(res, refreshToken);
-  
-      // Return user and tokens
-      return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
-  
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        return res.status(200).json({ message: 'Login successful', user });
+      })
     })(req, res, next);
   },
   

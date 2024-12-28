@@ -1,4 +1,9 @@
+import { SessionOptions } from "express-session";
 import { REFRESH_TOKEN_EXP_TIME } from "../utils/generateTokens";
+import MongoStore from "connect-mongo";
+import { DAuthOptions } from "../middleware/authMiddleware";
+import { Options } from "express-rate-limit";
+import { CorsOptions } from "cors";
 
 export interface CookieOptions {
   httpOnly?: boolean;
@@ -50,15 +55,16 @@ class AuthConfig {
   /**
    * Default company name
    */
-  companyDetails: CompanyDetails = {
-    name: "D-Auth",
-    website: "https://d-auth.com",
-    contact: "https://d-auth.com/contact",
-    privacyPolicy: "https://d-auth.com/privacy-policy",
-    termsOfService: "https://d-auth.com/terms-of-service",
-    support: "https://d-auth.com/support",
-    address: "123 Main Street, Sheohar, Bihar 844416"
-  }
+  companyDetails: CompanyDetails;
+
+  sessionOptions: SessionOptions;
+
+  sessionSecret: string;
+  mongoDbUri: string;
+
+  rateLimitOptions: Partial<Options>;
+
+  corsOptions: CorsOptions;
 
   private constructor() {
     // Set default values
@@ -78,7 +84,7 @@ class AuthConfig {
       host: 'smtp.gmail.com',
       port: 587,
       secure: true
-    }
+    };
     this.companyDetails = {
       name: "D-Auth",
       website: "https://d-auth.com",
@@ -87,6 +93,30 @@ class AuthConfig {
       termsOfService: "https://d-auth.com/terms-of-service",
       support: "https://d-auth.com/support",
       address: "123 Main Street, Sheohar, Bihar 844416"
+    };
+    this.sessionSecret = process.env.SESSION_SECRET! || "secret";
+    this.mongoDbUri = process.env.MONGO_URI!;
+    this.sessionOptions = {
+      name: 'd-auth-session',
+      secret: process.env.SESSION_SECRET! || "secret",
+      resave: false,
+      saveUninitialized: false,
+      store: new MongoStore({
+        mongoUrl: process.env.MONGO_URI!,
+        ttl: REFRESH_TOKEN_EXP_TIME, // 1 days
+        autoRemove: 'native'
+      }),
+      cookie: this.cookieOptions
+    }
+    this.rateLimitOptions = {
+      windowMs: 5 * 60 * 1000, // 15 minutes
+      max: 500, // Limit each IP to 2000 requests per windowMs
+      message: 'Too many requests, please try again later',
+      legacyHeaders: false,
+    }
+    this.corsOptions = {
+      origin: "*",
+      credentials: true,
     }
   }
 
@@ -109,6 +139,35 @@ class AuthConfig {
   // Update configuration with user-provided options
   setCookieOptions(options: CookieOptions) {
     this.cookieOptions = { ...this.cookieOptions, ...options };
+  }
+
+  setSessionOptions(options?: SessionOptions) {
+    if (!options) {
+      return;
+    }
+    this.sessionOptions = { ...this.cookieOptions, ...options };
+  }
+
+  setConfiguration(options: DAuthOptions) {
+    if (options.cookieOptions) {
+      this.cookieOptions = { ...this.cookieOptions, ...options.cookieOptions };
+    }
+    this.setNodeMailerConfig(options.nodeMailerConfig);
+    this.setCompanyDetails(options.companyDetails);
+    this.mongoDbUri = options.mongoDbUri;
+    if (options.sessionSecret) {
+      this.sessionSecret = options.sessionSecret;
+      this.sessionOptions.secret = options.sessionSecret;
+    }
+    if (options.sessionOptions) {
+      this.sessionOptions = { ...this.sessionOptions, ...options.sessionOptions };
+    }
+    if (options.rateLimitOptions) {
+      this.rateLimitOptions = { ...this.rateLimitOptions, ...options.rateLimitOptions };
+    }
+    if (options.corsOptions) {
+      this.corsOptions = { ...this.corsOptions, ...options.corsOptions };
+    }
   }
 }
 

@@ -2,28 +2,20 @@ import express, { Express, Request, Response } from "express";
 import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from "./middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from 'path';
-import cookieParser from "cookie-parser";
-import cors from "cors";
+import userRouter from "./routes/userRouter";
 
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
-// Middleware
-app.use(
-  cors({
-    origin:"*" , 
-    credentials: true,
-  })
-);
-app.use(express.json());
-app.use(cookieParser());
-
-
 dAuthMiddleware(app, {
   enableFacebookLogin: false,
   enableGoogleLogin: true,
+  googleLoginDetails: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID!,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  },
   mongoDbUri: process.env.MONGO_URI!,
   sessionSecret: process.env.SESSION_SECRET!,
   authRouteinitials: "/auth",
@@ -34,7 +26,7 @@ dAuthMiddleware(app, {
     privacyPolicy: "https://d-auth.com/privacy-policy",
     termsOfService: "https://d-auth.com/terms-of-service",
     support: "https://d-auth.com/support",
-    address: "123 Main Street, Sheohar, Bihar 844416"
+    address: "123 Main Street"
   },
   nodeMailerConfig: {
     auth: {
@@ -45,6 +37,9 @@ dAuthMiddleware(app, {
     host: 'smtp.gmail.com',
     port: 587,
     secure: true
+  },
+  corsOptions: {
+    origin: 'http://localhost:5173',
   }
 
 });
@@ -54,6 +49,8 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use('/api', authenticateApiMiddleware);
+
+app.use("/api", userRouter);
 
 // Define routes
 app.get('/api/public/data', (req: Request, res: Response) => {

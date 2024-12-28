@@ -3,6 +3,8 @@ import sendEmail from "./services/sendEmail";
 import userController from "./controllers/userController";
 import User, { IUser } from "./models/User";
 import { HttpStatus, HTTPResponse } from "./httpResponse";
+import userRouter from "./routes/userRouter";
+import { TemplateRenderer } from './services/TemplateRendrer';
 export * from "./utils/generateTokens";
 export * from "./utils/verifyToken";
 export default dAuthMiddleware;
@@ -16,5 +18,7 @@ export {
   sendEmail,
   userController,
   HTTPResponse,
-  HttpStatus
+  HttpStatus,
+  userRouter,
+  TemplateRenderer as EmailRendrerer
 }

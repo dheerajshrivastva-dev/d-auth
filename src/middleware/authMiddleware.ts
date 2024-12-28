@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction, Express } from 'express';
-import session from 'express-session';
+import express, { Request, Response, NextFunction, Express } from 'express';
+import session, { SessionOptions } from 'express-session';
 import { JwtPayload } from 'jsonwebtoken';
 import User from '../models/User';
 
@@ -11,6 +11,13 @@ import mongoose from 'mongoose';
 import dotenv from "dotenv";
 import { verifyToken } from '../utils/verifyToken';
 import AuthConfig, { CookieOptions, NodeMailerConfig, CompanyDetails } from '../config/authConfig';
+import { REFRESH_TOKEN_EXP_TIME } from '../utils/generateTokens';
+
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import MongoStore from 'connect-mongo';
+import rateLimit, { Options } from 'express-rate-limit';
+import { HTTPResponse, HttpStatus } from '../httpResponse';
 
 dotenv.config();
 
@@ -21,6 +28,9 @@ export interface DAuthOptions extends AuthOptions {
   companyDetails: CompanyDetails;
   authRouteinitials?: string;
   cookieOptions?: CookieOptions;
+  sessionOptions?: SessionOptions;
+  rateLimitOptions?: Partial<Options>;
+  corsOptions?: cors.CorsOptions;
 }
 
 /**
@@ -75,13 +85,6 @@ export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
 
   const configInstance = AuthConfig.getInstance();
 
-  configInstance.setCompanyDetails(options.companyDetails);
-  configInstance.setNodeMailerConfig(options.nodeMailerConfig);
-
-  if (options.cookieOptions) {
-    configInstance.setCookieOptions(options.cookieOptions);
-  }
-
   if (!options.sessionSecret) {
     throw new Error('Session secret is required');
   }
@@ -90,18 +93,36 @@ export function dAuthMiddleware(app: Express | any, options: DAuthOptions) {
     throw new Error('MongoDB URI is required');
   }
 
+  if ( !process.env.CORS_ORIGIN ) {
+    throw new Error('CORS_ORIGIN environment variable is required');
+  }
+
+
+  configInstance.setConfiguration(options);
+
   // MongoDB connection
   mongoose.connect(options.mongoDbUri)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
-  app.use(session({ secret: options.sessionSecret!, resave: false, saveUninitialized: true }));
-  // Initialize Passport with the configuration
-  passportConfig(options);
+  app.use(session(AuthConfig.getInstance().sessionOptions));
+  
+  // Middleware
+  app.use(
+    cors(AuthConfig.getInstance().corsOptions)
+  );
 
+  app.use(rateLimit(AuthConfig.getInstance().rateLimitOptions));
+
+  app.use(express.json());
+  app.use(cookieParser());
+  
   // Initialize Passport and session management middleware
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Initialize Passport with the configuration
+  passportConfig(options);
 
   // Attach auth routes here (e.g., /auth/login, /auth/register)
   app.use(options.authRouteinitials || '', authRoutes);
@@ -122,6 +143,23 @@ export interface AuthenticatedRequest extends Request {
  * @return {void}
  */
 export const authenticateApiMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Skip /api/public/* routes
+  if (req.path.startsWith('/public/')) {
+    return next();
+  }
+
+  if (req.isAuthenticated() && req.user.id) {
+    if (req.path.startsWith('/admin/') && (!req.user.isAdmin || !req.user.isVerified)) {
+      return res.status(400).send( new HTTPResponse({statusCode: HttpStatus.UN_AUTHORISED.code, httpStatus: HttpStatus.UN_AUTHORISED.status, message: "Not admin or not verified"}));
+    } else {
+      return next();
+    }
+  } else {
+    return res.status(403).send( new HTTPResponse({statusCode: HttpStatus.FORBIDDEN.code, httpStatus: HttpStatus.FORBIDDEN.status, message: "Unauthorized Access"}));
+  }
+};
+
+export const authenticateApiJWTMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   // Skip /api/public/* routes
   if (req.path.startsWith('/api/public')) {
     return next();
