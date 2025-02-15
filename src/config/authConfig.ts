@@ -106,7 +106,13 @@ class AuthConfig {
         ttl: REFRESH_TOKEN_EXP_TIME, // 1 days
         autoRemove: 'native'
       }),
-      cookie: this.cookieOptions
+      cookie: {
+      httpOnly: true,
+      secure: true, // Use secure cookies (HTTPS)
+      sameSite: 'lax', // Default to lax
+      path: '/',
+      maxAge: REFRESH_TOKEN_EXP_TIME
+    }
     }
     this.rateLimitOptions = {
       windowMs: 5 * 60 * 1000, // 15 minutes
