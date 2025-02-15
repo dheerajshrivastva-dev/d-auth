@@ -65,7 +65,7 @@ export function passportConfig(options: AuthOptions) {
       new GoogleStrategy({
         clientID: options.googleLoginDetails.googleClientId!,
         clientSecret: options.googleLoginDetails.googleClientSecret!,
-        callbackURL: '/auth/google/callback'
+        callbackURL: `${process.env.HOSTED_DOMAIN}/auth/google/callback`
       },
       async (accessToken, refreshToken, profile, done) => {
         try {

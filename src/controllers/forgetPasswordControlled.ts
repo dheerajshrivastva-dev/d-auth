@@ -77,6 +77,7 @@ export default {
         new HTTPResponse({statusCode: HttpStatus.OK.code, httpStatus: HttpStatus.OK.status, message: 'Otp sent successfully', data: { sessionId }})
       )
     } catch (error) {
+      logger.error(error)
       return res.status(500).send(
         new HTTPResponse({statusCode: HttpStatus.INTERNAL_SERVER_ERROR.code, httpStatus: HttpStatus.INTERNAL_SERVER_ERROR.status, message: JSON.stringify(error) || "Something went wrong"})
       )
