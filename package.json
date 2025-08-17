@@ -1,6 +1,6 @@
 {
   "name": "@dheerajshrivastva-dev/d-auth",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "express js middleware for authentication using passportjs",
   "main": "src/app.js",
   "scripts": {
