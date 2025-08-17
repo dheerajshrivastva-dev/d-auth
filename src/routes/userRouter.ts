@@ -34,7 +34,7 @@ import userController from '../controllers/userController';
  */
 const userRouter = Router();
 
-userRouter.get('/admin/user:id', userController.getUser);
+userRouter.get('/admin/user/:id', userController.getUser);
 
 userRouter.post('/admin/user/update', userController.updateUser);
 

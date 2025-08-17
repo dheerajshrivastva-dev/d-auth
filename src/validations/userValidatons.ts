@@ -18,19 +18,19 @@ const userValidation  = Joi.object({
 })
 
 const updateMeValidation  = Joi.object({
-  firstName: Joi.string(),
-  middleName: Joi.string(),
-  lastName: Joi.string(),
-  profileUrl: Joi.string(),
-  dob: Joi.date(),
-  gender: Joi.string(),
-  address1: Joi.string(),
-  address2: Joi.string(),
-  city: Joi.string(),
-  state: Joi.string(),
-  country: Joi.string(),
-  pincode: Joi.string(),
-  phone: Joi.string(),
+  firstName: Joi.string().optional(),
+  middleName: Joi.string().optional(),
+  lastName: Joi.string().optional(),
+  profileUrl: Joi.string().optional(),
+  dob: Joi.date().optional(),
+  gender: Joi.string().optional(),
+  address1: Joi.string().optional(),
+  address2: Joi.string().optional(),
+  city: Joi.string().optional(),
+  state: Joi.string().optional(),
+  country: Joi.string().optional(),
+  pincode: Joi.string().optional(),
+  phone: Joi.string().optional(),
 })
 
 const createUserValidation = Joi.object({

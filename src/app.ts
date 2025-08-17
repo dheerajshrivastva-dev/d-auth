@@ -3,6 +3,7 @@ import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware } from
 import dotenv from "dotenv";
 import path from 'path';
 import userRouter from "./routes/userRouter";
+import { REFRESH_TOKEN_EXP_TIME } from "./utils/generateTokens";
 
 dotenv.config();
 
@@ -10,38 +11,58 @@ const app: Express = express();
 const port = process.env.PORT || 3001;
 
 dAuthMiddleware(app, {
-  enableFacebookLogin: false,
+  mongoDbUri: process.env.DATABASE_URL!,
+  sessionSecret: process.env.SESSION_SECRET!,
   enableGoogleLogin: true,
   googleLoginDetails: {
     googleClientId: process.env.GOOGLE_CLIENT_ID!,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   },
-  mongoDbUri: process.env.MONGO_URI!,
-  sessionSecret: process.env.SESSION_SECRET!,
+  enableFacebookLogin: false,
   authRouteinitials: "/auth",
   companyDetails: {
-    name: "D-Auth Tester",
-    website: "https://d-auth.com",
-    contact: "https://d-auth.com/contact",
-    privacyPolicy: "https://d-auth.com/privacy-policy",
-    termsOfService: "https://d-auth.com/terms-of-service",
-    support: "https://d-auth.com/support",
-    address: "123 Main Street"
+    name: "Bevarc pvt. ltd.",
+    website: "https://bevarc.com",
+    contact: "https://bevarc.com/contact-us",
+    address: "https://bevarc.com/contact-us",
+    support: "https://bevarc.com/contact-us",
+    privacyPolicy: "https://bevarc.com/privacy-policy",
+    termsOfService: "https://bevarc.com/terms-of-service",
   },
   nodeMailerConfig: {
     auth: {
       user: process.env.EMAIL_USERNAME!,
       pass: process.env.EMAIL_PASSWORD!,
     },
-    service: 'gmail',
-    host: 'smtp.gmail.com',
+    service: "gmail",
+    host: "smtp.gmail.com",
     port: 587,
-    secure: true
+    secure: true,
+  },
+  rateLimitOptions: {
+    windowMs: 5 * 60 * 1000,
+    limit: 500,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: "to many request please try the service after 5 minutes",
   },
   corsOptions: {
-    origin: 'http://localhost:5173',
-  }
-
+    origin: process.env.CORS_ORIGIN === "*" ? "*" : process.env.CORS_ORIGIN?.split(","),
+    credentials: true,
+  },
+  sessionOptions: {
+    name: "bevarc-auth-session",
+    secret: process.env.SESSION_SECRET! || "secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // Use secure cookies (HTTPS)
+      sameSite: "lax", // Default to lax
+      path: "/",
+      maxAge: REFRESH_TOKEN_EXP_TIME,
+    },
+  },
 });
 
 app.get("/", (req: Request, res: Response) => {
