@@ -1,6 +1,6 @@
 import { Joi } from "express-validation";
 
-const userValidation  = Joi.object({
+const userValidation = Joi.object({
   userId: Joi.string().required(),
   firstName: Joi.string(),
   middleName: Joi.string(),
@@ -15,9 +15,9 @@ const userValidation  = Joi.object({
   country: Joi.string(),
   pincode: Joi.string(),
   phone: Joi.string(),
-})
+});
 
-const updateMeValidation  = Joi.object({
+const updateMeValidation = Joi.object({
   firstName: Joi.string(),
   middleName: Joi.string(),
   lastName: Joi.string(),
@@ -31,7 +31,7 @@ const updateMeValidation  = Joi.object({
   country: Joi.string(),
   pincode: Joi.string(),
   phone: Joi.string(),
-})
+});
 
 const createUserValidation = Joi.object({
   email: Joi.string().email().required(),
@@ -48,17 +48,18 @@ const createUserValidation = Joi.object({
   state: Joi.string(),
   country: Joi.string(),
   pincode: Joi.string(),
-})
+});
 
 const registerUserValidation = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string()
-    .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$'))
+    .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"))
     .required()
-    .label('Password')
+    .label("Password")
     .messages({
-      'string.pattern.base': 'Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.',
-      'string.empty': 'Password is required',
+      "string.pattern.base":
+        "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.",
+      "string.empty": "Password is required",
     }),
   firstName: Joi.string().required(),
   middleName: Joi.string(),
@@ -78,30 +79,31 @@ const registerUserValidation = Joi.object({
 const updateAdminStatusValidation = Joi.object({
   userId: Joi.string().required(),
   makeAdmin: Joi.boolean(),
-})
+});
 
 const forgetPasswordValidation = Joi.object({
   email: Joi.string().email().required(),
-})
+});
 
 const resetPasswordValidatins = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string()
-    .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$'))
+    .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"))
     .required()
-    .label('Password')
+    .label("Password")
     .messages({
-      'string.pattern.base': 'Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.',
-      'string.empty': 'Password is required',
+      "string.pattern.base":
+        "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.",
+      "string.empty": "Password is required",
     }),
 
   confirmPassword: Joi.string()
-    .valid(Joi.ref('password'))
+    .valid(Joi.ref("password"))
     .required()
-    .label('Confirm Password')
+    .label("Confirm Password")
     .messages({
-      'any.only': 'Confirm Password must match Password',
-      'string.empty': 'Confirm Password is required',
+      "any.only": "Confirm Password must match Password",
+      "string.empty": "Confirm Password is required",
     }),
   otp: Joi.string().required(),
   /**
@@ -109,17 +111,18 @@ const resetPasswordValidatins = Joi.object({
    * Required if cookies are disabled
    */
   sessionId: Joi.string(),
-})
+});
 
 const loginValidation = Joi.object({
   email: Joi.string().required(),
   password: Joi.string()
-    .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$'))
+    .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"))
     .required()
-    .label('Password')
+    .label("Password")
     .messages({
-      'string.pattern.base': 'Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.',
-      'string.empty': 'Password is required',
+      "string.pattern.base":
+        "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character.",
+      "string.empty": "Password is required",
     }),
 });
 

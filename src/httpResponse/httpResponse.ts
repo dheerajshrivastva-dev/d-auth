@@ -10,7 +10,6 @@ interface IResponseInput<T> {
 // }
 
 class HTTPResponse<T> {
-
   timeStamp: string;
   httpStatus: string;
   statusCode: number;

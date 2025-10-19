@@ -1,16 +1,16 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { LOGIN_SESSION_EXP_TIME } from '../utils/generateTokens';
+import mongoose, { Document, Schema } from "mongoose";
+import { LOGIN_SESSION_EXP_TIME } from "../utils/generateTokens";
 
 // Predefined roles enum
 export enum UserRole {
-  SUPERADMIN = 'superadmin',
-  ADMIN = 'admin',
-  USER = 'user',
-  EMPLOYEE = 'employee',
-  MANAGER = 'manager',
-  SUPERVISOR = 'supervisor',
-  STAFF = 'staff',
-  MODERATOR = 'moderator',
+  SUPERADMIN = "superadmin",
+  ADMIN = "admin",
+  USER = "user",
+  EMPLOYEE = "employee",
+  MANAGER = "manager",
+  SUPERVISOR = "supervisor",
+  STAFF = "staff",
+  MODERATOR = "moderator",
 }
 
 interface IToken {
@@ -54,51 +54,66 @@ export interface IUser extends Document {
   pincode?: string;
   phone?: string;
 
-  addSession(refreshToken: string, sessionId: string, ip: string, deviceName: string): Promise<void>;
+  addSession(
+    refreshToken: string,
+    sessionId: string,
+    ip: string,
+    deviceName: string
+  ): Promise<void>;
   getToken(sessionId: string): Promise<IToken>;
   hasRole(role: string): boolean;
 }
 
-const userSchema = new Schema<IUser>({
-  email: { type: String, required: true, unique: true },
-  password: { type: String },
-  googleId: { type: String },
-  facebookId: { type: String },
-  appleId: { type: String },
-  tokens: [
-    {
-      sessionId: { type: String }, // Unique session identifier
-      refreshToken: { type: String },
-      ip: { type: String, required: true },
-      deviceName: { type: String, required: true },
-      createdAt: { type: Date, default: Date.now } // Automatically delete after 7 days
-    }
-  ],
-  firstName: { type: String },
-  lastName: { type: String },
-  middleName: { type: String },
-  profileUrl: { type: String },
-  dob: { type: Date },
-  gender: { type: String },
-  address1: { type: String },
-  address2: { type: String },
-  city: { type: String },
-  state: { type: String },
-  country: { type: String },
-  pincode: { type: String },
-  phone: { type: String },
-  isVerified: { type: Boolean, default: false, required: true },
-  isAdmin: { type: Boolean, default: false, required: true }, // Deprecated: kept for backward compatibility
-  roles: {
-    type: [String],
-    enum: Object.values(UserRole),
-    default: [UserRole.USER]
+const userSchema = new Schema<IUser>(
+  {
+    email: { type: String, required: true, unique: true },
+    password: { type: String },
+    googleId: { type: String },
+    facebookId: { type: String },
+    appleId: { type: String },
+    tokens: [
+      {
+        sessionId: { type: String }, // Unique session identifier
+        refreshToken: { type: String },
+        ip: { type: String, required: true },
+        deviceName: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }, // Automatically delete after 7 days
+      },
+    ],
+    firstName: { type: String },
+    lastName: { type: String },
+    middleName: { type: String },
+    profileUrl: { type: String },
+    dob: { type: Date },
+    gender: { type: String },
+    address1: { type: String },
+    address2: { type: String },
+    city: { type: String },
+    state: { type: String },
+    country: { type: String },
+    pincode: { type: String },
+    phone: { type: String },
+    isVerified: { type: Boolean, default: false, required: true },
+    isAdmin: { type: Boolean, default: false, required: true }, // Deprecated: kept for backward compatibility
+    roles: {
+      type: [String],
+      enum: Object.values(UserRole),
+      default: [UserRole.USER],
+    },
   },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-userSchema.methods.addSession = async function (refreshToken: string, sessionId: string, ip: string, deviceName: string) {
-  const existingSession = this.tokens.find((tokenObj: IUser['tokens'][0]) => tokenObj.ip === ip && tokenObj.deviceName === deviceName);
-  
+userSchema.methods.addSession = async function (
+  refreshToken: string,
+  sessionId: string,
+  ip: string,
+  deviceName: string
+) {
+  const existingSession = this.tokens.find(
+    (tokenObj: IUser["tokens"][0]) => tokenObj.ip === ip && tokenObj.deviceName === deviceName
+  );
+
   if (existingSession) {
     // Update the existing session
     existingSession.refreshToken = refreshToken;
@@ -106,7 +121,7 @@ userSchema.methods.addSession = async function (refreshToken: string, sessionId:
   } else {
     // Add new session
     this.tokens.push({ sessionId, refreshToken, ip, deviceName });
-    
+
     // Keep a max of 10 sessions
     if (this.tokens.length > 10) {
       this.tokens.shift(); // Remove the oldest session
@@ -118,10 +133,10 @@ userSchema.methods.addSession = async function (refreshToken: string, sessionId:
 userSchema.methods.getToken = async function (sessionId: string) {
   const now = Date.now();
   // Find the token
-  const tokenIndex = this.tokens.findIndex((token : IToken) => token.sessionId === sessionId);
+  const tokenIndex = this.tokens.findIndex((token: IToken) => token.sessionId === sessionId);
 
   if (tokenIndex === -1) {
-    throw new Error('Token not found');
+    throw new Error("Token not found");
   }
 
   const token = this.tokens[tokenIndex];
@@ -133,7 +148,7 @@ userSchema.methods.getToken = async function (sessionId: string) {
     // Remove the expired token
     this.tokens.splice(tokenIndex, 1);
     await this.save();
-    throw new Error('Token has expired and has been deleted');
+    throw new Error("Token has expired and has been deleted");
   }
 
   return token;
@@ -141,8 +156,8 @@ userSchema.methods.getToken = async function (sessionId: string) {
 
 // Role-based access control helper methods
 userSchema.methods.hasRole = function (role: string): boolean {
-  return this.roles.includes(role)
+  return this.roles.includes(role);
 };
 
-const User = mongoose.model<IUser>('User', userSchema);
+const User = mongoose.model<IUser>("User", userSchema);
 export default User;

@@ -1,6 +1,5 @@
 import { SessionOptions } from "express-session";
 import { REFRESH_TOKEN_EXP_TIME } from "../utils/generateTokens";
-import MongoStore from "connect-mongo";
 import { DAuthOptions } from "../middleware/authMiddleware";
 import { Options } from "express-rate-limit";
 import { CorsOptions } from "cors";
@@ -8,7 +7,7 @@ import { CorsOptions } from "cors";
 export interface CookieOptions {
   httpOnly?: boolean;
   secure?: boolean;
-  sameSite?: boolean | 'strict' | 'lax' | 'none';
+  sameSite?: boolean | "strict" | "lax" | "none";
   domain?: string;
   path?: string;
   maxAge?: number;
@@ -35,7 +34,6 @@ export interface NodeMailerConfig {
    * Default secure: true
    */
   secure?: boolean;
-
 }
 
 export interface CompanyDetails {
@@ -71,19 +69,19 @@ class AuthConfig {
     this.cookieOptions = {
       httpOnly: true,
       secure: true, // Use secure cookies (HTTPS)
-      sameSite: 'lax', // Default to lax
-      path: '/',
-      maxAge: REFRESH_TOKEN_EXP_TIME
+      sameSite: "lax", // Default to lax
+      path: "/",
+      maxAge: REFRESH_TOKEN_EXP_TIME,
     };
     this.nodeMailerConfig = {
       auth: {
         user: process.env.NODE_MAILER_USER!,
         pass: process.env.NODE_MAILER_PASS!,
       },
-      service: 'Gmail',
-      host: 'smtp.gmail.com',
+      service: "Gmail",
+      host: "smtp.gmail.com",
       port: 587,
-      secure: true
+      secure: true,
     };
     this.companyDetails = {
       name: "D-Auth",
@@ -92,33 +90,33 @@ class AuthConfig {
       privacyPolicy: "https://d-auth.com/privacy-policy",
       termsOfService: "https://d-auth.com/terms-of-service",
       support: "https://d-auth.com/support",
-      address: "123 Main Street, Sheohar, Bihar 844416"
+      address: "123 Main Street, Sheohar, Bihar 844416",
     };
     this.sessionSecret = process.env.SESSION_SECRET! || "secret";
     this.mongoDbUri = process.env.MONGO_URI!;
     this.sessionOptions = {
-      name: 'd-auth-session',
+      name: "d-auth-session",
       secret: process.env.SESSION_SECRET! || "secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
         secure: true, // Use secure cookies (HTTPS)
-        sameSite: 'lax', // Default to lax
-        path: '/',
-        maxAge: REFRESH_TOKEN_EXP_TIME
-      }
-    }
+        sameSite: "lax", // Default to lax
+        path: "/",
+        maxAge: REFRESH_TOKEN_EXP_TIME,
+      },
+    };
     this.rateLimitOptions = {
       windowMs: 5 * 60 * 1000, // 15 minutes
       max: 500, // Limit each IP to 2000 requests per windowMs
-      message: 'Too many requests, please try again later',
+      message: "Too many requests, please try again later",
       legacyHeaders: false,
-    }
+    };
     this.corsOptions = {
       origin: "*",
       credentials: true,
-    }
+    };
   }
 
   // Singleton pattern to get a single instance of AuthConfig
@@ -173,4 +171,3 @@ class AuthConfig {
 }
 
 export default AuthConfig;
-

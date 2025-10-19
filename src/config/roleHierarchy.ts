@@ -1,4 +1,4 @@
-import User, { UserRole } from '../models/User';
+import { UserRole } from "../models/User";
 
 /**
  * Role hierarchy configuration
@@ -24,14 +24,14 @@ export type RoleHierarchy = {
  * A role with level 5 can access routes that require level 3, 2, or 1
  */
 export const DEFAULT_ROLE_HIERARCHY: RoleHierarchy = {
-  [UserRole.SUPERADMIN]: 120,   // Top level - can access everything including admin
-  [UserRole.ADMIN]: 100,        // Highest - can access everything
-  [UserRole.MODERATOR]: 80,     // Can access all below
-  [UserRole.MANAGER]: 60,       // Can access supervisor, employee, staff, user
-  [UserRole.SUPERVISOR]: 40,    // Can access employee, staff, user
-  [UserRole.EMPLOYEE]: 20,      // Can access staff, user
-  [UserRole.STAFF]: 10,         // Can access user only
-  [UserRole.USER]: 0,           // Base level
+  [UserRole.SUPERADMIN]: 120, // Top level - can access everything including admin
+  [UserRole.ADMIN]: 100, // Highest - can access everything
+  [UserRole.MODERATOR]: 80, // Can access all below
+  [UserRole.MANAGER]: 60, // Can access supervisor, employee, staff, user
+  [UserRole.SUPERVISOR]: 40, // Can access employee, staff, user
+  [UserRole.EMPLOYEE]: 20, // Can access staff, user
+  [UserRole.STAFF]: 10, // Can access user only
+  [UserRole.USER]: 0, // Base level
 };
 
 /**
@@ -97,8 +97,8 @@ export class RoleHierarchyManager {
    */
   hasAllAccess(userRoles: string[], requiredRoles: string[]): boolean {
     // User must be able to access every required role
-    return requiredRoles.every(requiredRole =>
-      userRoles.some(userRole => this.hasAccess(userRole, requiredRole))
+    return requiredRoles.every((requiredRole) =>
+      userRoles.some((userRole) => this.hasAccess(userRole, requiredRole))
     );
   }
 
@@ -111,9 +111,7 @@ export class RoleHierarchyManager {
     const userLevel = this.getRoleLevel(userRole);
     if (userLevel === -1) return [];
 
-    return Object.keys(this.hierarchy).filter(
-      role => this.getRoleLevel(role) <= userLevel
-    );
+    return Object.keys(this.hierarchy).filter((role) => this.getRoleLevel(role) <= userLevel);
   }
 
   /**

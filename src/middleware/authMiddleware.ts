@@ -1,22 +1,26 @@
-import express, { Request, Response, NextFunction, Express } from 'express';
-import session, { SessionOptions } from 'express-session';
-import { JwtPayload } from 'jsonwebtoken';
-import User from '../models/User';
+import express, { Request, Response, NextFunction, Express } from "express";
+import session, { SessionOptions } from "express-session";
+import { JwtPayload } from "jsonwebtoken";
+import User from "../models/User";
 
-import { AuthOptions, passportConfig } from '../passport/passportConfig';
-import passport from 'passport';
-import authRoutes from '../routes/authRoutes';
-import mongoose from 'mongoose';
+import { AuthOptions, passportConfig } from "../passport/passportConfig";
+import passport from "passport";
+import authRoutes from "../routes/authRoutes";
+import mongoose from "mongoose";
 
 import dotenv from "dotenv";
-import { verifyToken } from '../utils/verifyToken';
-import AuthConfig, { CookieOptions, NodeMailerConfig, CompanyDetails } from '../config/authConfig';
+import { verifyToken } from "../utils/verifyToken";
+import AuthConfig, { CookieOptions, NodeMailerConfig, CompanyDetails } from "../config/authConfig";
 
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import rateLimit, { Options } from 'express-rate-limit';
-import { HTTPResponse, HttpStatus } from '../httpResponse';
-import { RoleHierarchy, initializeRoleHierarchy, getRoleHierarchyManager } from '../config/roleHierarchy';
+import rateLimit, { Options } from "express-rate-limit";
+import { HTTPResponse, HttpStatus } from "../httpResponse";
+import {
+  RoleHierarchy,
+  initializeRoleHierarchy,
+  getRoleHierarchyManager,
+} from "../config/roleHierarchy";
 
 dotenv.config();
 
@@ -94,15 +98,15 @@ export function dAuthMiddleware(options: DAuthOptions) {
 
     // Validate required options
     if (!options.sessionSecret) {
-      throw new Error('Session secret is required');
+      throw new Error("Session secret is required");
     }
 
     if (!options.mongoDbUri) {
-      throw new Error('MongoDB URI is required');
+      throw new Error("MongoDB URI is required");
     }
 
     if (!process.env.CORS_ORIGIN) {
-      throw new Error('CORS_ORIGIN environment variable is required');
+      throw new Error("CORS_ORIGIN environment variable is required");
     }
 
     configInstance.setConfiguration(options);
@@ -111,17 +115,16 @@ export function dAuthMiddleware(options: DAuthOptions) {
     initializeRoleHierarchy(options.roleHierarchy);
 
     // Connect to MongoDB
-    mongoose.connect(options.mongoDbUri)
-      .then(() => console.log('MongoDB connected'))
-      .catch(err => console.error(err));
+    mongoose
+      .connect(options.mongoDbUri)
+      .then(() => console.log("MongoDB connected"))
+      .catch((err) => console.error(err));
 
     // Apply global middleware to app instance
     // Note: These must be applied to app (not router) to work across all routes
     app.use(session(AuthConfig.getInstance().sessionOptions));
 
-    app.use(
-      cors(AuthConfig.getInstance().corsOptions)
-    );
+    app.use(cors(AuthConfig.getInstance().corsOptions));
 
     app.use(rateLimit(AuthConfig.getInstance().rateLimitOptions));
 
@@ -136,7 +139,7 @@ export function dAuthMiddleware(options: DAuthOptions) {
     passportConfig(options);
 
     // Attach auth routes (e.g., /auth/login, /auth/register, /auth/google, etc.)
-    app.use(options.authRouteinitials || '', authRoutes);
+    app.use(options.authRouteinitials || "", authRoutes);
   };
 }
 
@@ -194,7 +197,7 @@ export const requireRoles = (requiredRoles: string[] = []) => {
         new HTTPResponse({
           statusCode: HttpStatus.UN_AUTHORISED.code,
           httpStatus: HttpStatus.UN_AUTHORISED.status,
-          message: 'Authentication required'
+          message: "Authentication required",
         })
       );
     }
@@ -203,8 +206,8 @@ export const requireRoles = (requiredRoles: string[] = []) => {
 
     // Get user's roles (support legacy isAdmin)
     const userRoles = req.user.roles || [];
-    if (req.user.isAdmin && !userRoles.includes('admin')) {
-      userRoles.push('admin');
+    if (req.user.isAdmin && !userRoles.includes("admin")) {
+      userRoles.push("admin");
     }
 
     // Check if user has access to ANY of the required roles (or higher) using hierarchy
@@ -215,7 +218,7 @@ export const requireRoles = (requiredRoles: string[] = []) => {
         new HTTPResponse({
           statusCode: HttpStatus.FORBIDDEN.code,
           httpStatus: HttpStatus.FORBIDDEN.status,
-          message: `Access denied. Required roles: ${requiredRoles.join(', ')} (or higher)`
+          message: `Access denied. Required roles: ${requiredRoles.join(", ")} (or higher)`,
         })
       );
     }
@@ -242,23 +245,27 @@ export const requireRoles = (requiredRoles: string[] = []) => {
  * app.use('/api/user', requireRoles(['user']), userRouter);
  * app.use('/api/admin', requireRoles(['admin']), adminRouter);
  */
-export const authenticateApiMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateApiMiddleware = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   // Skip /api/public/* routes
-  if (req.path.startsWith('/public/')) {
+  if (req.path.startsWith("/public/")) {
     return next();
   }
 
   if (req.isAuthenticated() && req.user.id) {
     // Check admin routes - supports both legacy isAdmin and new roles array
-    if (req.path.startsWith('/admin/')) {
-      const isAdmin = req.user.isAdmin || (req.user.roles && req.user.roles.includes('admin'));
+    if (req.path.startsWith("/admin/")) {
+      const isAdmin = req.user.isAdmin || (req.user.roles && req.user.roles.includes("admin"));
 
       if (!isAdmin || !req.user.isVerified) {
         return res.status(400).send(
           new HTTPResponse({
             statusCode: HttpStatus.UN_AUTHORISED.code,
             httpStatus: HttpStatus.UN_AUTHORISED.status,
-            message: "Not admin or not verified"
+            message: "Not admin or not verified",
           })
         );
       }
@@ -270,27 +277,31 @@ export const authenticateApiMiddleware = async (req: AuthenticatedRequest, res: 
     new HTTPResponse({
       statusCode: HttpStatus.FORBIDDEN.code,
       httpStatus: HttpStatus.FORBIDDEN.status,
-      message: "Unauthorized Access"
+      message: "Unauthorized Access",
     })
   );
 };
 
-export const authenticateApiJWTMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateApiJWTMiddleware = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   // Skip /api/public/* routes
-  if (req.path.startsWith('/api/public')) {
+  if (req.path.startsWith("/api/public")) {
     return next();
   }
 
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    return res.status(401).json({ message: 'Authorization token is missing' });
+    return res.status(401).json({ message: "Authorization token is missing" });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json({ message: 'Require access token to use this api' });
+    return res.status(401).json({ message: "Require access token to use this api" });
   }
 
   try {
@@ -300,7 +311,7 @@ export const authenticateApiJWTMiddleware = async (req: AuthenticatedRequest, re
     const user = await User.findById(decoded?.id);
 
     if (!user) {
-      return res.status(403).json({ message: 'Invalid access token' });
+      return res.status(403).json({ message: "Invalid access token" });
     }
 
     // Attach user to the request
@@ -308,7 +319,7 @@ export const authenticateApiJWTMiddleware = async (req: AuthenticatedRequest, re
 
     // Proceed to the next middleware or route handler
     next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid or expired token' });
+  } catch {
+    return res.status(403).json({ message: "Invalid or expired token" });
   }
 };

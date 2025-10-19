@@ -6,7 +6,7 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', '*.js'],
+    ignores: ['dist/**', 'node_modules/**', '*.js', 'src/app.ts', 'tsup.config.ts'],
   },
   eslint.configs.recommended,
   {
@@ -16,7 +16,14 @@ export default [
       parserOptions: {
         ecmaVersion: 2020,
         sourceType: 'module',
-        project: './tsconfig.json',
+      },
+      globals: {
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        NodeJS: 'readonly',
       },
     },
     plugins: {
@@ -36,7 +43,10 @@ export default [
           varsIgnorePattern: '^_',
         },
       ],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/triple-slash-reference': 'off',
+      'no-console': 'off', // Allow console for development/debugging
+      'no-undef': 'off', // TypeScript handles this
+      'no-irregular-whitespace': ['error', { skipTemplates: true, skipStrings: true }]
     },
   },
 ];
