@@ -1,7 +1,4 @@
-import AuthConfig from "../../config/authConfig";
-import { footerTemplate } from "./footerTemplate";
-
-const otpEmailTemplateMessage = `
+const _otpEmailTemplateMessage = `
     <!-- Content -->
     <div class="content">
         <p>Hi <strong>{{userName}}</strong>,</p>
@@ -360,15 +357,15 @@ const otpNewTemplate = `
 </body>
 
 </html>
-`
+`;
 
 export const completeOtpEmailTemplate = {
-    htmlTemplate: otpNewTemplate,
-    subject: "Password Reset OTP",
-    staticPayload: {
-        year: String(new Date().getFullYear()),
-        unsubscribeLink: "https://d-auth.com/unsubscribe",
-        reportIssueLink: "https://d-auth.com/reportissue",
-        reportLink: "https://d-auth.com/report",
-    }
+  htmlTemplate: otpNewTemplate,
+  subject: "Password Reset OTP",
+  staticPayload: {
+    year: String(new Date().getFullYear()),
+    unsubscribeLink: "https://d-auth.com/unsubscribe",
+    reportIssueLink: "https://d-auth.com/reportissue",
+    reportLink: "https://d-auth.com/report",
+  },
 };

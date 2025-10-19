@@ -13,7 +13,11 @@ interface Template {
 export class TemplateRenderer {
   private template: Template;
 
-  constructor(template: {htmlTemplate: string, staticPayload: TemplateVariables, subject: string} ) {
+  constructor(template: {
+    htmlTemplate: string;
+    staticPayload: TemplateVariables;
+    subject: string;
+  }) {
     this.template = template;
   }
 
@@ -31,7 +35,7 @@ export class TemplateRenderer {
       companyName: AuthConfig.getInstance().companyDetails.name,
       providerEmail: AuthConfig.getInstance().nodeMailerConfig.auth.user,
       companyAddress: AuthConfig.getInstance().companyDetails.address,
-    }
+    };
 
     Object.entries(fullVariables).forEach(([key, value]) => {
       const placeholder = new RegExp(`{{${key}}}`, "g");

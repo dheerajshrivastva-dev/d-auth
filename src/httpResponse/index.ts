@@ -1,7 +1,4 @@
 import HTTPResponse from "./httpResponse";
 import HttpStatus from "./httpStatus";
 
-export {
-  HTTPResponse,
-  HttpStatus
-}
+export { HTTPResponse, HttpStatus };

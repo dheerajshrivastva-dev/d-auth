@@ -1,6 +1,5 @@
-import nodemailer from 'nodemailer';
-import AuthConfig from '../config/authConfig';
-import logger from '../utils/logger';
+import nodemailer from "nodemailer";
+import AuthConfig from "../config/authConfig";
 
 interface mailDetails extends nodemailer.SendMailOptions {
   to: string; // receiver email
@@ -8,12 +7,10 @@ interface mailDetails extends nodemailer.SendMailOptions {
 }
 
 const sendEmail = async (mailDetails: mailDetails) => {
-  const transporter = nodemailer.createTransport(
-    AuthConfig.getInstance().nodeMailerConfig
-  )
+  const transporter = nodemailer.createTransport(AuthConfig.getInstance().nodeMailerConfig);
   return await transporter.sendMail({
     ...mailDetails,
-    from: AuthConfig.getInstance().nodeMailerConfig.auth.user
+    from: AuthConfig.getInstance().nodeMailerConfig.auth.user,
   });
 };
 
