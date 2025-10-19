@@ -1,16 +1,18 @@
 {
   "name": "@dheerajshrivastva-dev/d-auth",
-  "version": "1.0.3",
+  "version": "3.0.0",
   "description": "express js middleware for authentication using passportjs",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsup",
     "prepublishOnly": "npm run build",
     "start": "node ./dist/index.js",
-    "dev": "nodemon ./src/app.ts"
+    "dev": "nodemon ./src/app.ts",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
   },
   "files": [
     "dist/**/*",
@@ -39,9 +41,12 @@
   },
   "homepage": "https://github.com/dheerajshrivastva-dev/d-auth#readme",
   "dependencies": {
+    "connect-mongo": "^5.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "uuid": "^10.0.0"
+    "express-validation": "^4.1.1",
+    "uuid": "^10.0.0",
+    "winston": "^3.17.0"
   },
   "peerDependencies": {
     "bcryptjs": "^2.4.3",
@@ -60,9 +65,6 @@
     "ua-parser-js": "^1.0.39"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^28.0.0",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^15.3.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",
@@ -78,12 +80,15 @@
     "@types/passport-local": "^1.0.38",
     "@types/ua-parser-js": "^0.7.39",
     "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "nodemon": "^3.1.7",
-    "rollup": "^2.79.1",
-    "rollup-plugin-peer-deps-external": "^2.2.4",
-    "rollup-plugin-terser": "^7.0.2",
-    "rollup-plugin-typescript2": "^0.36.0",
+    "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.6.2"
   }
 }
