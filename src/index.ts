@@ -1,10 +1,12 @@
-import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware, DAuthOptions } from "./middleware/authMiddleware";
+import { AuthenticatedRequest, authenticateApiMiddleware, dAuthMiddleware, DAuthOptions, requireRoles } from "./middleware/authMiddleware";
 import sendEmail from "./services/sendEmail";
 import userController from "./controllers/userController";
-import User, { IUser } from "./models/User";
+import User, { IUser, UserRole } from "./models/User";
 import { HttpStatus, HTTPResponse } from "./httpResponse";
 import userRouter from "./routes/userRouter";
 import { TemplateRenderer } from './services/TemplateRendrer';
+import { RoleHierarchy, DEFAULT_ROLE_HIERARCHY, RoleHierarchyManager, initializeRoleHierarchy, getRoleHierarchyManager } from './config/roleHierarchy';
+
 export * from "./utils/generateTokens";
 export * from "./utils/verifyToken";
 export default dAuthMiddleware;
@@ -20,5 +22,14 @@ export {
   HTTPResponse,
   HttpStatus,
   userRouter,
-  TemplateRenderer as EmailRendrerer
+  TemplateRenderer as EmailRendrerer,
+  // RBAC exports
+  UserRole,
+  requireRoles,     // Unified RBAC middleware (recommended)
+  // Role Hierarchy exports
+  RoleHierarchy,
+  DEFAULT_ROLE_HIERARCHY,
+  RoleHierarchyManager,
+  initializeRoleHierarchy,
+  getRoleHierarchyManager
 }

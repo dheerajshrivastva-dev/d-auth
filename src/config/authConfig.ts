@@ -101,18 +101,13 @@ class AuthConfig {
       secret: process.env.SESSION_SECRET! || "secret",
       resave: false,
       saveUninitialized: false,
-      store: new MongoStore({
-        mongoUrl: process.env.MONGO_URI!,
-        ttl: REFRESH_TOKEN_EXP_TIME, // 1 days
-        autoRemove: 'native'
-      }),
       cookie: {
-      httpOnly: true,
-      secure: true, // Use secure cookies (HTTPS)
-      sameSite: 'lax', // Default to lax
-      path: '/',
-      maxAge: REFRESH_TOKEN_EXP_TIME
-    }
+        httpOnly: true,
+        secure: true, // Use secure cookies (HTTPS)
+        sameSite: 'lax', // Default to lax
+        path: '/',
+        maxAge: REFRESH_TOKEN_EXP_TIME
+      }
     }
     this.rateLimitOptions = {
       windowMs: 5 * 60 * 1000, // 15 minutes

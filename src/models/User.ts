@@ -1,6 +1,18 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { LOGIN_SESSION_EXP_TIME } from '../utils/generateTokens';
 
+// Predefined roles enum
+export enum UserRole {
+  SUPERADMIN = 'superadmin',
+  ADMIN = 'admin',
+  USER = 'user',
+  EMPLOYEE = 'employee',
+  MANAGER = 'manager',
+  SUPERVISOR = 'supervisor',
+  STAFF = 'staff',
+  MODERATOR = 'moderator',
+}
+
 interface IToken {
   sessionId: string;
   refreshToken: string;
@@ -16,7 +28,17 @@ export interface IUser extends Document {
   appleId?: string;
   tokens: IToken[];
   isVerified: boolean;
+
+  /**
+   * @deprecated Use roles array instead
+   */
   isAdmin: boolean;
+
+  /**
+   * Array of roles assigned to the user
+   * @example ['admin', 'user', 'manager'] etc
+   */
+  roles: string[];
 
   firstName: string;
   lastName: string;
@@ -34,6 +56,7 @@ export interface IUser extends Document {
 
   addSession(refreshToken: string, sessionId: string, ip: string, deviceName: string): Promise<void>;
   getToken(sessionId: string): Promise<IToken>;
+  hasRole(role: string): boolean;
 }
 
 const userSchema = new Schema<IUser>({
@@ -65,7 +88,12 @@ const userSchema = new Schema<IUser>({
   pincode: { type: String },
   phone: { type: String },
   isVerified: { type: Boolean, default: false, required: true },
-  isAdmin: { type: Boolean, default: false, required: true },
+  isAdmin: { type: Boolean, default: false, required: true }, // Deprecated: kept for backward compatibility
+  roles: {
+    type: [String],
+    enum: Object.values(UserRole),
+    default: [UserRole.USER]
+  },
 }, { timestamps: true });
 
 userSchema.methods.addSession = async function (refreshToken: string, sessionId: string, ip: string, deviceName: string) {
@@ -111,6 +139,10 @@ userSchema.methods.getToken = async function (sessionId: string) {
   return token;
 };
 
+// Role-based access control helper methods
+userSchema.methods.hasRole = function (role: string): boolean {
+  return this.roles.includes(role)
+};
 
 const User = mongoose.model<IUser>('User', userSchema);
 export default User;

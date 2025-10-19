@@ -112,47 +112,33 @@ export default {
   },
   
   googleLoginCallback: async (req: Request, res: Response) => {
-    const user = req.user as {googleId: string, email: string};
-    let existingUser = await User.findOne({ googleId: user?.googleId });
-  
-    if (!existingUser) {
-      existingUser = await User.create({
-        email: user?.email,
-        googleId: user?.googleId,
-      });
+    // Handle redirect URL from state parameter
+    let redirectUrl = process.env.SOCIAL_LOGIN_SUCCESS_URL!;
+
+    if (req.query.state) {
+      try {
+        const stateData = JSON.parse(Buffer.from(req.query.state as string, 'base64').toString());
+        redirectUrl = stateData.redirectUrl || redirectUrl;
+      } catch (error) {
+        console.error("Error decoding state parameter:", error);
+      }
     }
-    const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
-  
-    // Extract client details
-    const { ip, deviceName } = extractClientDetails(req);
-  
-    await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
-    // Send refresh token as an HTTP-only cookie
-    setRefreshTokenCookie(res, refreshToken);
-  
-    return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
+
+    return res.redirect(redirectUrl);
   },
   
   facebookLoginCallback: async (req: Request, res: Response) => {
-    const user = req.user as {facebookId: string, email: string};
-    let existingUser = await User.findOne({ googleId: user?.facebookId });
-  
-    if (!existingUser) {
-      existingUser = await User.create({
-        email: user?.email,
-        facebookId: user?.facebookId,
-      });
+    let redirectUrl = process.env.SOCIAL_LOGIN_SUCCESS_URL!;
+
+    if (req.query.state) {
+      try {
+        const stateData = JSON.parse(Buffer.from(req.query.state as string, 'base64').toString());
+        redirectUrl = stateData.redirectUrl || redirectUrl;
+      } catch (error) {
+        console.error("Error decoding state parameter:", error);
+      }
     }
-    const { sessionId, accessToken, refreshToken } = generateTokensByUserId(existingUser.id);
-  
-    // Extract client details
-    const { ip, deviceName } = extractClientDetails(req);
-  
-    await existingUser.addSession(refreshToken, sessionId, ip, deviceName);
-    // Send refresh token as an HTTP-only cookie
-    setRefreshTokenCookie(res, refreshToken);
-  
-    return res.status(200).json({ message: 'Login successful', user: {id: existingUser.id, email: existingUser.email, accessToken }});
+    return res.redirect(redirectUrl);
   },
   
   logout: async (req: Request, res: Response) => {
