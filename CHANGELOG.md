@@ -130,62 +130,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.0.1] - 2024-XX-XX
-
-### Changed
-- Minor version bump for npm publish
-
----
-
-## [2.0.0] - 2024-XX-XX
-
+## [1.2.0] - 2024-06-10
 ### Added
-- Cookie session-based login
-- User CRUD controller
-- Complete user management routes
-- Admin user role support
+- Integrated Google login support via environment variables.
+- Added company details and contact information in authentication middleware configuration.
+- Implemented rate limiting for authentication routes.
+- Added CORS options with dynamic origin support.
+- Configured session options for authentication, including secure cookies and maxAge.
+- Added routes for privacy policy and terms of service serving static HTML files.
+- Added public and private API routes with authentication middleware.
 
 ### Changed
-- Enhanced authentication flow with session management
-
----
-
-## [1.x.x] - 2024-XX-XX
-
-### Added
-- Password forget/reset feature with email OTP
-- Email integration using NodeMailer
-- Detailed user schema
-- HTTPResponse class for standardized responses
-- User controller exports
-- Auto-delete functionality for unverified users
-
-### Changed
-- Improved user schema with more fields
-- Enhanced email templates
+- Updated authentication middleware to support new configuration options.
+- Improved session management and security settings.
 
 ### Fixed
-- Various bugs in authentication flow
-- User deletion issues
+- Minor bug fixes and improvements in authentication flow.
 
----
+# Changelog
 
-## [Initial Releases]
+## [1.2.1] - 2025-08-18
+### Changed
+- Updated `app.ts` to use environment variables for Google login, session, and CORS configuration.
+- Improved session cookie settings for security and compatibility.
+- Refined rate limiting message and options.
+- Updated privacy policy and terms of service routes to serve static HTML files from the public directory.
 
 ### Added
-- Basic authentication (local username/password)
-- Google OAuth integration
-- Facebook OAuth integration
-- Rate limiting
-- Session management with MongoDB
-- MongoDB user storage
-- JWT token generation
-- Basic user model
-- Authentication middleware
-- Initial Express middleware setup
-- NPM package setup
+- Added explicit public and private API routes with authentication middleware.
 
----
+### Fixed
+- Minor improvements in route handling and middleware usage.
+
+## [1.2.0] - 2024-06-10
+### Added
+- Integrated Google login support via environment variables.
+- Added company details and contact information in authentication middleware configuration.
+- Implemented rate limiting for authentication routes.
+- Added CORS options with dynamic origin support.
+- Configured session options for authentication, including secure cookies and maxAge.
+- Added routes for privacy policy and terms of service serving static HTML files.
+- Added public and private API routes with authentication middleware.
+
+### Changed
+- Updated authentication middleware to support new configuration options.
+- Improved session management and security settings.
+
+### Fixed
+- Minor bug fixes and improvements in authentication flow.
+
 
 ## Migration Guides
 
