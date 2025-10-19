@@ -5,7 +5,7 @@
   "main": "src/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsup",
     "prepublishOnly": "npm run build",
     "start": "node ./dist/index.js",
     "dev": "nodemon ./src/app.ts"
@@ -78,6 +78,7 @@
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.6.2"
   }
 }

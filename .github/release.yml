@@ -1,0 +1,46 @@
+# GitHub Release Notes Configuration
+# Categorizes PRs automatically in release notes
+
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - dependabot
+
+  categories:
+    - title: 🚀 Features
+      labels:
+        - feature
+        - enhancement
+        - feat
+
+    - title: 🐛 Bug Fixes
+      labels:
+        - bug
+        - fix
+        - bugfix
+
+    - title: 📚 Documentation
+      labels:
+        - documentation
+        - docs
+
+    - title: 🔧 Maintenance
+      labels:
+        - chore
+        - dependencies
+        - refactor
+
+    - title: ⚠️ Breaking Changes
+      labels:
+        - breaking-change
+        - breaking
+
+    - title: 🔒 Security
+      labels:
+        - security
+
+    - title: Other Changes
+      labels:
+        - "*"
