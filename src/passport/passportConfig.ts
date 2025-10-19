@@ -47,8 +47,8 @@ export function passportConfig(options: AuthOptions) {
           lastName: existingUser?.lastName,
           isVerified: existingUser?.isVerified,
           isAdmin: existingUser?.isAdmin,
-          profileUrl: existingUser?.profileUrl
-
+          profileUrl: existingUser?.profileUrl,
+          roles: existingUser?.roles || [],
         }
         return done(null, user);
       } catch {

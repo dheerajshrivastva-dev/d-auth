@@ -159,7 +159,10 @@ export default {
   },
 
   me: async (req: AuthenticatedRequest, res: Response) => {
-    const id = req.user.id;
+    const id = req?.user?.id;
+		console.log("TCL: ----------")
+		console.log("TCL: id", id)
+		console.log("TCL: ----------")
     try {
       if (!id) {
         return res.status(200).send(
