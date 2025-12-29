@@ -1,4 +1,5 @@
 import { Joi } from "express-validation";
+import { UserRole } from "../models/User";
 
 const userValidation = Joi.object({
   userId: Joi.string().required(),
@@ -74,6 +75,9 @@ const registerUserValidation = Joi.object({
   state: Joi.string(),
   country: Joi.string(),
   pincode: Joi.string(),
+  roles: Joi.array().items(
+    Joi.string().valid(...Object.values(UserRole))
+  ),
 });
 
 const updateAdminStatusValidation = Joi.object({
