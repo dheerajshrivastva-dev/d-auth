@@ -7,12 +7,26 @@ import { BaseAuthMiddleware } from "../BaseAuthMiddleware";
  *
  * Changes from v3:
  * - User.findOne → database.findUserById
- * - Direct token manipulation → database.removeSession
+ * - Direct token manipulation → sessionStore.removeSession
  * - Added hook call: onUserLogout
+ * - Added support for both JWT and Session modes
  */
 export class LogoutMiddleware extends BaseAuthMiddleware {
   logout = async (req: Request, res: Response) => {
-    // ✅ REUSE: Extract token from cookies (authController.ts:162-167)
+    const isJWTMode = !!this.jwtConfig;
+
+    if (isJWTMode) {
+      return this.logoutWithJWT(req, res);
+    } else {
+      return this.logoutWithSession(req, res);
+    }
+  };
+
+  /**
+   * JWT-based logout
+   * Removes session from store and clears token cookies
+   */
+  private logoutWithJWT = async (req: Request, res: Response) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
@@ -20,37 +34,68 @@ export class LogoutMiddleware extends BaseAuthMiddleware {
     }
 
     try {
-      // ✅ REUSE: Verify token (authController.ts:171)
       const decoded = this.verifyJWT(refreshToken);
 
-      // 🔄 CHANGE: User.findOne → database.findUserById
       const user = await this.database.findUserById(decoded.id);
       if (!user) {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
 
-      // 🔄 CHANGE: Token array manipulation → database.removeSession
-      await this.database.removeSession(decoded.id, decoded.sessionId);
+      await this.sessionStore.removeSession(decoded.id, decoded.sessionId);
 
-      // 🆕 NEW: Call hook
       await this.hooks.onUserLogout?.({
         userId: decoded.id,
         sessionId: decoded.sessionId,
       });
 
-      // ✅ REUSE: Clear cookies (authController.ts:188)
       this.clearTokenCookies(res);
 
-      // ✅ REUSE: Passport logout (authController.ts:191-196)
+      return res.status(200).json({ message: "Logout successful" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      return res.status(500).json({ message: "Error during logout" });
+    }
+  };
+
+  /**
+   * Session-based logout
+   * Destroys Passport session
+   */
+  private logoutWithSession = async (req: Request, res: Response) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(400).json({ message: "Not logged in" });
+    }
+
+    const userId = req.user?.id;
+
+    try {
+      // Destroy Passport session
       if (req.logout) {
-        req.logout((err) => {
-          if (err) {
-            console.error("Passport logout error:", err);
-          }
+        await new Promise<void>((resolve, reject) => {
+          req.logout((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
       }
 
-      // ✅ REUSE: Response (authController.ts:197)
+      // Destroy express-session
+      if (req.session) {
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      if (userId) {
+        await this.hooks.onUserLogout?.({
+          userId,
+          sessionId: "", // Session mode doesn't track session IDs like JWT mode
+        });
+      }
+
       return res.status(200).json({ message: "Logout successful" });
     } catch (error) {
       console.error("Logout error:", error);

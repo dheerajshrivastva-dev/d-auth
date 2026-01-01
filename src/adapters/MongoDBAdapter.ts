@@ -43,6 +43,13 @@ export class MongoDBAdapter implements IDatabaseAdapter {
         roles: { type: [String], default: ["user"] },
         isVerified: { type: Boolean, default: false },
 
+        // Password management (v4.0.0)
+        isTemporaryPassword: { type: Boolean, default: false },
+        mustResetPassword: { type: Boolean, default: false },
+        failedLoginAttempts: { type: Number, default: 0 },
+        lastFailedLoginAt: { type: Date },
+        accountLockedUntil: { type: Date },
+
         // 2FA fields
         twoFactorEnabled: { type: Boolean, default: false },
         twoFactorSecret: { type: String },
@@ -147,6 +154,40 @@ export class MongoDBAdapter implements IDatabaseAdapter {
       isVerified: true,
     });
     return !!result;
+  }
+
+  async incrementFailedLoginAttempts(userId: string): Promise<number> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new Error("User not found");
+
+    const newCount = (user.failedLoginAttempts || 0) + 1;
+    await this.userModel.findByIdAndUpdate(userId, {
+      failedLoginAttempts: newCount,
+      lastFailedLoginAt: new Date(),
+    });
+
+    return newCount;
+  }
+
+  async resetFailedLoginAttempts(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      failedLoginAttempts: 0,
+      lastFailedLoginAt: null,
+    });
+  }
+
+  async lockAccount(userId: string, lockUntil: Date): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      accountLockedUntil: lockUntil,
+    });
+  }
+
+  async isAccountLocked(userId: string): Promise<boolean> {
+    const user = await this.userModel.findById(userId).select("accountLockedUntil");
+    if (!user || !user.accountLockedUntil) return false;
+
+    // Check if lock time has passed
+    return new Date() < new Date(user.accountLockedUntil);
   }
 
   // ==================== 2FA Operations ====================
@@ -308,12 +349,25 @@ export class MongoDBAdapter implements IDatabaseAdapter {
       appleId: user.appleId,
       roles: user.roles || ["user"],
       isVerified: user.isVerified || false,
+
+      // Password management (v4.0.0)
+      isTemporaryPassword: user.isTemporaryPassword || false,
+      mustResetPassword: user.mustResetPassword || false,
+      failedLoginAttempts: user.failedLoginAttempts || 0,
+      lastFailedLoginAt: user.lastFailedLoginAt,
+      accountLockedUntil: user.accountLockedUntil,
+
+      // 2FA
       twoFactorEnabled: user.twoFactorEnabled || false,
       twoFactorSecret: user.twoFactorSecret,
       twoFactorBackupCodes: user.twoFactorBackupCodes,
+
+      // Profile
       firstName: user.firstName,
       lastName: user.lastName,
       profileUrl: user.profileUrl,
+
+      // Timestamps
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       ...user, // Include any custom fields

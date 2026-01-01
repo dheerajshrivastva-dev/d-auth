@@ -25,6 +25,11 @@ describe("Login Middleware", () => {
         secret: "test-secret",
         tokenMode: "both",
       },
+      accountSecurity: {
+        maxFailedLoginAttempts: 3,
+        lockoutDurationMinutes: 15,
+        enableAccountLockout: true,
+      },
       hooks: {
         onUserLogin: onUserLoginMock,
         onAccountLocked: onAccountLockedMock,

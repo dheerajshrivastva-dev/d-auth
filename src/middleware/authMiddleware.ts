@@ -144,7 +144,7 @@ export function dAuthMiddleware(options: DAuthOptions) {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: any;
+  user?: any; // Legacy v3 - kept for backward compatibility. Use guards/requireAuth.AuthenticatedRequest in v4
 }
 
 /**

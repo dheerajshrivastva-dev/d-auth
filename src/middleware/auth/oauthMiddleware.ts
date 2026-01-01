@@ -11,21 +11,74 @@ import { BaseAuthMiddleware } from "../BaseAuthMiddleware";
  * - Links OAuth account to existing email
  * - Generates session/JWT tokens
  * - Calls onUserRegistered hook for new users
+ * - Validates and handles post-OAuth redirects
  */
 export class OAuthMiddleware extends BaseAuthMiddleware {
   /**
+   * Validates redirect URL against whitelist
+   */
+  private validateRedirectUrl(redirectUrl: string): boolean {
+    const allowedUrls = this.oauthConfig?.allowedRedirectUrls || [];
+
+    if (allowedUrls.length === 0) {
+      return false;
+    }
+
+    return allowedUrls.some((allowedUrl: string) => redirectUrl.startsWith(allowedUrl));
+  }
+
+  /**
+   * Encodes state parameter with redirect URL
+   */
+  private encodeState(redirectUrl: string): string {
+    return Buffer.from(JSON.stringify({ redirectUrl })).toString("base64");
+  }
+
+  /**
+   * Decodes state parameter to get redirect URL
+   */
+  private decodeState(state: string): string | null {
+    try {
+      const decoded = JSON.parse(Buffer.from(state, "base64").toString());
+      return decoded.redirectUrl || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Google OAuth Login
-   * Initiates Google OAuth flow
+   * Initiates Google OAuth flow with optional redirect URL
    */
   googleAuth = (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("google", {
-      scope: ["profile", "email"],
-    })(req, res, next);
+    const redirectUrl = req.headers.referer as string;
+
+    // If redirect URL is provided, validate and include in state
+    if (redirectUrl) {
+      const isValid = this.validateRedirectUrl(redirectUrl);
+
+      if (!isValid) {
+        return res.status(400).json({
+          error: "Invalid redirect URL",
+          message: "The provided redirect URL is not in the allowed list",
+        });
+      }
+
+      const state = this.encodeState(redirectUrl);
+      passport.authenticate("google", {
+        scope: ["profile", "email"],
+        state: state,
+      })(req, res, next);
+    } else {
+      passport.authenticate("google", {
+        scope: ["profile", "email"],
+      })(req, res, next);
+    }
   };
 
   /**
    * Google OAuth Callback
-   * Handles Google OAuth redirect
+   * Handles Google OAuth redirect with optional redirect URL
    */
   googleCallback = async (req: Request, res: Response, next: NextFunction) => {
     passport.authenticate("google", async (err: any, user: any, info: any) => {
@@ -45,6 +98,10 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
         // Check if this is a new user (newly created)
         const existingUser = await this.database.findUserByOAuthId("google", user.googleId);
         const isNewUser = !existingUser;
+
+        // Extract redirect URL from state parameter
+        const state = req.query.state as string;
+        const redirectUrl = state ? this.decodeState(state) : null;
 
         // If JWT mode, generate tokens
         if (this.jwtConfig) {
@@ -78,6 +135,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
 
           this.setTokenCookies(res, { accessToken, refreshToken });
 
+          // If redirect URL exists, redirect to it
+          if (redirectUrl) {
+            return res.redirect(redirectUrl);
+          }
+
           return res.status(200).json(
             this.formatTokenResponse(
               { accessToken, refreshToken },
@@ -109,6 +171,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
               deviceName,
             });
 
+            // If redirect URL exists, redirect to it
+            if (redirectUrl) {
+              return res.redirect(redirectUrl);
+            }
+
             return res.status(200).json({
               message: isNewUser ? "Registration successful" : "Login successful",
               user,
@@ -124,17 +191,37 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
 
   /**
    * Facebook OAuth Login
-   * Initiates Facebook OAuth flow
+   * Initiates Facebook OAuth flow with optional redirect URL
    */
   facebookAuth = (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("facebook", {
-      scope: ["email"],
-    })(req, res, next);
+    const redirectUrl = req.headers.referer as string;
+
+    // If redirect URL is provided, validate and include in state
+    if (redirectUrl) {
+      const isValid = this.validateRedirectUrl(redirectUrl);
+
+      if (!isValid) {
+        return res.status(400).json({
+          error: "Invalid redirect URL",
+          message: "The provided redirect URL is not in the allowed list",
+        });
+      }
+
+      const state = this.encodeState(redirectUrl);
+      passport.authenticate("facebook", {
+        scope: ["email"],
+        state: state,
+      })(req, res, next);
+    } else {
+      passport.authenticate("facebook", {
+        scope: ["email"],
+      })(req, res, next);
+    }
   };
 
   /**
    * Facebook OAuth Callback
-   * Handles Facebook OAuth redirect
+   * Handles Facebook OAuth redirect with optional redirect URL
    */
   facebookCallback = async (req: Request, res: Response, next: NextFunction) => {
     passport.authenticate("facebook", async (err: any, user: any, info: any) => {
@@ -153,6 +240,10 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
       try {
         const existingUser = await this.database.findUserByOAuthId("facebook", user.facebookId);
         const isNewUser = !existingUser;
+
+        // Extract redirect URL from state parameter
+        const state = req.query.state as string;
+        const redirectUrl = state ? this.decodeState(state) : null;
 
         if (this.jwtConfig) {
           const { sessionId, accessToken, refreshToken } = this.generateTokens(user.id);
@@ -182,6 +273,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
           });
 
           this.setTokenCookies(res, { accessToken, refreshToken });
+
+          // If redirect URL exists, redirect to it
+          if (redirectUrl) {
+            return res.redirect(redirectUrl);
+          }
 
           return res.status(200).json(
             this.formatTokenResponse(
@@ -213,6 +309,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
               deviceName,
             });
 
+            // If redirect URL exists, redirect to it
+            if (redirectUrl) {
+              return res.redirect(redirectUrl);
+            }
+
             return res.status(200).json({
               message: isNewUser ? "Registration successful" : "Login successful",
               user,
@@ -228,15 +329,34 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
 
   /**
    * Apple OAuth Login
-   * Initiates Apple OAuth flow
+   * Initiates Apple OAuth flow with optional redirect URL
    */
   appleAuth = (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("apple")(req, res, next);
+    const redirectUrl = req.headers.referer as string;
+
+    // If redirect URL is provided, validate and include in state
+    if (redirectUrl) {
+      const isValid = this.validateRedirectUrl(redirectUrl);
+
+      if (!isValid) {
+        return res.status(400).json({
+          error: "Invalid redirect URL",
+          message: "The provided redirect URL is not in the allowed list",
+        });
+      }
+
+      const state = this.encodeState(redirectUrl);
+      passport.authenticate("apple", {
+        state: state,
+      })(req, res, next);
+    } else {
+      passport.authenticate("apple")(req, res, next);
+    }
   };
 
   /**
    * Apple OAuth Callback
-   * Handles Apple OAuth redirect
+   * Handles Apple OAuth redirect with optional redirect URL
    */
   appleCallback = async (req: Request, res: Response, next: NextFunction) => {
     passport.authenticate("apple", async (err: any, user: any, info: any) => {
@@ -255,6 +375,10 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
       try {
         const existingUser = await this.database.findUserByOAuthId("apple", user.appleId);
         const isNewUser = !existingUser;
+
+        // Extract redirect URL from state parameter
+        const state = req.query.state as string;
+        const redirectUrl = state ? this.decodeState(state) : null;
 
         if (this.jwtConfig) {
           const { sessionId, accessToken, refreshToken } = this.generateTokens(user.id);
@@ -285,6 +409,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
 
           this.setTokenCookies(res, { accessToken, refreshToken });
 
+          // If redirect URL exists, redirect to it
+          if (redirectUrl) {
+            return res.redirect(redirectUrl);
+          }
+
           return res.status(200).json(
             this.formatTokenResponse(
               { accessToken, refreshToken },
@@ -314,6 +443,11 @@ export class OAuthMiddleware extends BaseAuthMiddleware {
               ip,
               deviceName,
             });
+
+            // If redirect URL exists, redirect to it
+            if (redirectUrl) {
+              return res.redirect(redirectUrl);
+            }
 
             return res.status(200).json({
               message: isNewUser ? "Registration successful" : "Login successful",

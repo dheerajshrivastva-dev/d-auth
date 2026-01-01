@@ -1,7 +1,14 @@
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { IDatabaseAdapter } from "../adapters/IDatabaseAdapter";
-import { DAuthHooks, JWTConfig, SessionConfig, TokenMode } from "../types/config";
+import { ISessionStore } from "../stores/ISessionStore";
+import {
+  DAuthHooks,
+  JWTConfig,
+  SessionConfig,
+  AccountSecurityConfig,
+  OAuthConfig,
+} from "../types/config";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -15,20 +22,38 @@ import { verifyToken } from "../utils/verifyToken";
  */
 export class BaseAuthMiddleware {
   protected database: IDatabaseAdapter;
+  protected sessionStore: ISessionStore;
+  protected maxSessionsPerUser: number;
   protected hooks: DAuthHooks;
   protected jwtConfig?: JWTConfig;
   protected sessionConfig?: SessionConfig;
+  protected accountSecurity: AccountSecurityConfig;
+  protected oauthConfig?: OAuthConfig;
 
   constructor(
     database: IDatabaseAdapter,
+    sessionStore: ISessionStore,
+    maxSessionsPerUser: number,
     hooks: DAuthHooks,
     jwtConfig?: JWTConfig,
-    sessionConfig?: SessionConfig
+    sessionConfig?: SessionConfig,
+    accountSecurity?: AccountSecurityConfig,
+    oauthConfig?: OAuthConfig
   ) {
     this.database = database;
+    this.sessionStore = sessionStore;
+    this.maxSessionsPerUser = maxSessionsPerUser;
     this.hooks = hooks;
     this.jwtConfig = jwtConfig;
     this.sessionConfig = sessionConfig;
+    this.oauthConfig = oauthConfig;
+
+    // Set defaults for account security
+    this.accountSecurity = {
+      maxFailedLoginAttempts: accountSecurity?.maxFailedLoginAttempts ?? 5,
+      lockoutDurationMinutes: accountSecurity?.lockoutDurationMinutes ?? 15,
+      enableAccountLockout: accountSecurity?.enableAccountLockout ?? true,
+    };
   }
 
   /**

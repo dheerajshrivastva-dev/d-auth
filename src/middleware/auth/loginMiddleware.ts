@@ -72,33 +72,41 @@ export class LoginMiddleware extends BaseAuthMiddleware {
       const isValidPassword = await bcrypt.compare(password, user.password);
 
       if (!isValidPassword) {
-        // 🆕 NEW: Increment failed login attempts
-        const failedAttempts = await this.database.incrementFailedLoginAttempts(user.id);
+        // 🆕 NEW: Increment failed login attempts (v4.0.0)
+        if (this.accountSecurity.enableAccountLockout) {
+          const failedAttempts = await this.database.incrementFailedLoginAttempts(user.id);
 
-        // Lock account after 3 failed attempts
-        if (failedAttempts >= 3) {
-          const lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
-          await this.database.lockAccount(user.id, lockUntil);
+          // Lock account after configured number of failed attempts
+          const maxAttempts = this.accountSecurity.maxFailedLoginAttempts!;
+          if (failedAttempts >= maxAttempts) {
+            const lockoutMinutes = this.accountSecurity.lockoutDurationMinutes!;
+            const lockUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
+            await this.database.lockAccount(user.id, lockUntil);
 
-          // Call hook
-          await this.hooks.onAccountLocked?.({
-            user: {
-              id: user.id,
-              email: user.email,
-            },
-            failedAttempts,
-            lockedUntil: lockUntil,
-          });
+            // Call hook
+            await this.hooks.onAccountLocked?.({
+              user: {
+                id: user.id,
+                email: user.email,
+              },
+              failedAttempts,
+              lockedUntil: lockUntil,
+            });
 
-          return res.status(403).json({
-            message:
-              "Account locked due to multiple failed login attempts. Your account will be unlocked in 15 minutes or you can reset your password.",
+            return res.status(403).json({
+              message: `Account locked due to multiple failed login attempts. Your account will be unlocked in ${lockoutMinutes} minutes or you can reset your password.`,
+            });
+          }
+
+          return res.status(401).json({
+            message: "Incorrect email or password.",
+            attemptsRemaining: maxAttempts - failedAttempts,
           });
         }
 
+        // If account lockout is disabled, just return error
         return res.status(401).json({
           message: "Incorrect email or password.",
-          attemptsRemaining: 3 - failedAttempts,
         });
       }
 
@@ -121,15 +129,19 @@ export class LoginMiddleware extends BaseAuthMiddleware {
       // ✅ REUSE: Extract client details from v3
       const { ip, deviceName } = this.getClientDetails(req);
 
-      // 🔄 CHANGE: user.addSession → database.addSession
-      await this.database.addSession(user.id, {
-        sessionId,
-        refreshToken,
-        ip,
-        deviceName,
-        createdAt: new Date(),
-        expiresAt: this.getSessionExpiry(),
-      });
+      // 🔄 CHANGE: user.addSession → sessionStore.addSession (with FIFO)
+      await this.sessionStore.addSession(
+        {
+          sessionId,
+          userId: user.id,
+          refreshToken,
+          ip,
+          deviceName,
+          createdAt: new Date(),
+          expiresAt: this.getSessionExpiry(),
+        },
+        this.maxSessionsPerUser
+      );
 
       // 🆕 NEW: Call hook
       await this.hooks.onUserLogin?.({

@@ -1,4 +1,5 @@
 import { IDatabaseAdapter } from "../adapters/IDatabaseAdapter";
+import { ISessionStore } from "../stores/ISessionStore";
 import { CookieOptions } from "express";
 
 /**
@@ -110,12 +111,24 @@ export interface OAuthConfig {
     privateKey: string;
     callbackURL: string;
   };
+  /**
+   * Allowed redirect URLs whitelist
+   * URLs that are permitted for post-OAuth redirects
+   */
+  allowedRedirectUrls?: string[];
 }
 
 /**
  * Role hierarchy configuration
  */
 export type RoleHierarchy = Record<string, number>;
+
+/**
+ * JWT invalidation strategy
+ * - 'stateless': Pure stateless JWT (tokens remain valid until expiry)
+ * - 'blacklist': Validate against active sessions (enables logout invalidation)
+ */
+export type JWTInvalidationStrategy = "stateless" | "blacklist";
 
 /**
  * JWT configuration (for 'jwt' auth strategy)
@@ -145,6 +158,16 @@ export interface JWTConfig {
    * Cookie options (used when tokenMode is 'cookie' or 'both')
    */
   cookieOptions?: CookieOptions;
+
+  /**
+   * JWT invalidation strategy (default: 'blacklist')
+   * - 'stateless': Pure stateless JWT, tokens remain valid until expiry
+   * - 'blacklist': Check session validity on each request (enables logout invalidation)
+   *
+   * Note: When using 'blacklist', sessions are validated using the database adapter.
+   * For best performance, use a Redis-based adapter implementation.
+   */
+  invalidationStrategy?: JWTInvalidationStrategy;
 }
 
 /**
@@ -261,6 +284,26 @@ export interface CORSConfig {
 }
 
 /**
+ * Account security configuration
+ */
+export interface AccountSecurityConfig {
+  /**
+   * Maximum failed login attempts before account lockout (default: 5)
+   */
+  maxFailedLoginAttempts?: number;
+
+  /**
+   * Account lockout duration in minutes (default: 15)
+   */
+  lockoutDurationMinutes?: number;
+
+  /**
+   * Enable account lockout feature (default: true)
+   */
+  enableAccountLockout?: boolean;
+}
+
+/**
  * Main d-auth configuration
  */
 export interface DAuthOptions {
@@ -287,6 +330,27 @@ export interface DAuthOptions {
   session?: SessionConfig;
 
   /**
+   * Session store for JWT blacklist strategy and session-based auth
+   *
+   * If not provided, defaults to DatabaseSessionStore (uses database adapter).
+   *
+   * Options:
+   * - DatabaseSessionStore: Uses your database adapter (backward compatible)
+   * - RedisSessionStore: Fast in-memory storage (recommended for production)
+   * - MemorySessionStore: In-memory storage (dev/testing only)
+   * - Custom implementation of ISessionStore
+   */
+  sessionStore?: ISessionStore;
+
+  /**
+   * Maximum number of concurrent sessions per user (default: 10)
+   *
+   * When this limit is reached, the oldest session is removed (FIFO).
+   * Applies to both JWT blacklist and session-based authentication.
+   */
+  maxSessionsPerUser?: number;
+
+  /**
    * OAuth providers configuration
    */
   oauth?: OAuthConfig;
@@ -310,6 +374,11 @@ export interface DAuthOptions {
    * CORS configuration
    */
   cors?: CORSConfig;
+
+  /**
+   * Account security configuration
+   */
+  accountSecurity?: AccountSecurityConfig;
 
   /**
    * Custom hooks for events

@@ -31,8 +31,8 @@ export class RefreshTokenMiddleware extends BaseAuthMiddleware {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
 
-      // 🔄 CHANGE: user.getToken → database.getSession
-      const session = await this.database.getSession(decoded.id, decoded.sessionId);
+      // 🔄 CHANGE: user.getToken → sessionStore.getSession
+      const session = await this.sessionStore.getSession(decoded.id, decoded.sessionId);
 
       if (!session) {
         return res.status(403).json({ message: "Session not found" });
@@ -42,7 +42,7 @@ export class RefreshTokenMiddleware extends BaseAuthMiddleware {
       const now = new Date();
       if (now > session.expiresAt) {
         // Session expired, remove it
-        await this.database.removeSession(decoded.id, decoded.sessionId);
+        await this.sessionStore.removeSession(decoded.id, decoded.sessionId);
         return res.status(403).json({ message: "Session expired" });
       }
 
@@ -50,8 +50,8 @@ export class RefreshTokenMiddleware extends BaseAuthMiddleware {
       const newAccessToken = generateAccessToken(user.id, session.sessionId);
       const newRefreshToken = generateRefreshToken(user.id, session.sessionId);
 
-      // 🔄 CHANGE: Direct token update → database.updateSessionToken
-      await this.database.updateSessionToken(user.id, session.sessionId, newRefreshToken);
+      // 🔄 CHANGE: Direct token update → sessionStore.updateSessionToken
+      await this.sessionStore.updateSessionToken(user.id, session.sessionId, newRefreshToken);
 
       // ✅ REUSE: Set cookies (authController.ts:245)
       this.setTokenCookies(res, {

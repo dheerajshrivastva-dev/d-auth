@@ -75,9 +75,7 @@ const registerUserValidation = Joi.object({
   state: Joi.string(),
   country: Joi.string(),
   pincode: Joi.string(),
-  roles: Joi.array().items(
-    Joi.string().valid(...Object.values(UserRole))
-  ),
+  roles: Joi.array().items(Joi.string().valid(...Object.values(UserRole))),
 });
 
 const updateAdminStatusValidation = Joi.object({

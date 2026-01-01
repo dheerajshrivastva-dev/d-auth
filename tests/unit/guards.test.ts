@@ -46,6 +46,16 @@ describe("Authentication Guards", () => {
     testUserId = user.id;
     testAccessToken = generateAccessToken(testUserId, "session123");
 
+    // Add session to database for blacklist validation
+    await mockDb.addSession(testUserId, {
+      sessionId: "session123",
+      refreshToken: "test-refresh-token",
+      ip: "127.0.0.1",
+      deviceName: "test-device",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
     // Protected route
     app.get("/protected", dAuth.requireAuth(), (req, res) => {
       res.json({ message: "Protected data", user: req.user });
@@ -197,6 +207,16 @@ describe("Authentication Guards", () => {
       });
       const adminToken = generateAccessToken(adminUser.id, "admin-session");
 
+      // Add admin session to database
+      await mockDb.addSession(adminUser.id, {
+        sessionId: "admin-session",
+        refreshToken: "admin-refresh-token",
+        ip: "127.0.0.1",
+        deviceName: "test-device",
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
       // Admin can access employee route
       let response = await request(app)
         .get("/employee-route")
@@ -269,6 +289,7 @@ describe("Authentication Guards", () => {
         jwt: {
           secret: "test-secret",
           tokenMode: "cookie",
+          invalidationStrategy: "stateless", // Stateless for this test
         },
       });
 
@@ -298,6 +319,7 @@ describe("Authentication Guards", () => {
         jwt: {
           secret: "test-secret",
           tokenMode: "response",
+          invalidationStrategy: "stateless", // Stateless for this test
         },
       });
 
@@ -312,6 +334,173 @@ describe("Authentication Guards", () => {
         .get("/protected")
         .set("Authorization", `Bearer ${testAccessToken}`)
         .expect(200);
+    });
+  });
+
+  describe("JWT Invalidation Strategies", () => {
+    describe("Blacklist Mode (default)", () => {
+      let blacklistApp: express.Application;
+      let blacklistDAuth: DAuth;
+      let blacklistUserId: string;
+      let blacklistToken: string;
+      const blacklistSessionId = "blacklist-session-123";
+
+      beforeEach(async () => {
+        blacklistApp = express();
+        blacklistApp.use(express.json());
+        blacklistApp.use(cookieParser());
+
+        blacklistDAuth = new DAuth({
+          database: mockDb,
+          jwt: {
+            secret: "test-secret",
+            tokenMode: "both",
+            invalidationStrategy: "blacklist", // Explicitly set blacklist mode
+          },
+        });
+
+        // Create user
+        const user = await mockDb.createUser({
+          email: "blacklist@example.com",
+          password: await bcrypt.hash("password", 10),
+          roles: ["user"],
+          isVerified: true,
+          twoFactorEnabled: false,
+        });
+
+        blacklistUserId = user.id;
+        blacklistToken = generateAccessToken(blacklistUserId, blacklistSessionId);
+
+        // Add session to database
+        await mockDb.addSession(blacklistUserId, {
+          sessionId: blacklistSessionId,
+          refreshToken: "blacklist-refresh-token",
+          ip: "127.0.0.1",
+          deviceName: "test-device",
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+
+        blacklistApp.get("/protected", blacklistDAuth.requireAuth(), (req, res) => {
+          res.json({ message: "Protected data", user: req.user });
+        });
+      });
+
+      it("should allow access with valid token and active session", async () => {
+        const response = await request(blacklistApp)
+          .get("/protected")
+          .set("Authorization", `Bearer ${blacklistToken}`)
+          .expect(200);
+
+        expect(response.body.message).toBe("Protected data");
+        expect(response.body.user.email).toBe("blacklist@example.com");
+      });
+
+      it("should reject access when session is removed (blacklist)", async () => {
+        // Remove session (simulates logout)
+        await mockDb.removeSession(blacklistUserId, blacklistSessionId);
+
+        const response = await request(blacklistApp)
+          .get("/protected")
+          .set("Authorization", `Bearer ${blacklistToken}`)
+          .expect(403);
+
+        expect(response.body.message).toContain("Session expired or invalidated");
+      });
+
+      it("should reject access when all sessions are cleared", async () => {
+        // Clear all sessions
+        await mockDb.clearAllSessions(blacklistUserId);
+
+        const response = await request(blacklistApp)
+          .get("/protected")
+          .set("Authorization", `Bearer ${blacklistToken}`)
+          .expect(403);
+
+        expect(response.body.message).toContain("Session expired or invalidated");
+      });
+    });
+
+    describe("Stateless Mode", () => {
+      let statelessApp: express.Application;
+      let statelessDAuth: DAuth;
+      let statelessUserId: string;
+      let statelessToken: string;
+      const statelessSessionId = "stateless-session-123";
+
+      beforeEach(async () => {
+        statelessApp = express();
+        statelessApp.use(express.json());
+
+        statelessDAuth = new DAuth({
+          database: mockDb,
+          jwt: {
+            secret: "test-secret",
+            tokenMode: "response",
+            invalidationStrategy: "stateless", // Stateless mode
+          },
+        });
+
+        // Create user
+        const user = await mockDb.createUser({
+          email: "stateless@example.com",
+          password: await bcrypt.hash("password", 10),
+          roles: ["user"],
+          isVerified: true,
+          twoFactorEnabled: false,
+        });
+
+        statelessUserId = user.id;
+        statelessToken = generateAccessToken(statelessUserId, statelessSessionId);
+
+        // Note: No session added to database in stateless mode
+
+        statelessApp.get("/protected", statelessDAuth.requireAuth(), (req, res) => {
+          res.json({ message: "Protected data", user: req.user });
+        });
+      });
+
+      it("should allow access with valid token (no session check)", async () => {
+        const response = await request(statelessApp)
+          .get("/protected")
+          .set("Authorization", `Bearer ${statelessToken}`)
+          .expect(200);
+
+        expect(response.body.message).toBe("Protected data");
+        expect(response.body.user.email).toBe("stateless@example.com");
+      });
+
+      it("should still allow access even if session is removed (stateless)", async () => {
+        // Add a session first
+        await mockDb.addSession(statelessUserId, {
+          sessionId: statelessSessionId,
+          refreshToken: "stateless-refresh-token",
+          ip: "127.0.0.1",
+          deviceName: "test-device",
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+
+        // Remove session
+        await mockDb.removeSession(statelessUserId, statelessSessionId);
+
+        // Should still work in stateless mode
+        const response = await request(statelessApp)
+          .get("/protected")
+          .set("Authorization", `Bearer ${statelessToken}`)
+          .expect(200);
+
+        expect(response.body.message).toBe("Protected data");
+      });
+
+      it("should reject access with invalid token", async () => {
+        const response = await request(statelessApp)
+          .get("/protected")
+          .set("Authorization", "Bearer invalid-token")
+          .expect(403);
+
+        expect(response.body.message).toContain("Invalid or expired token");
+      });
     });
   });
 });

@@ -15,10 +15,21 @@ export { DAuth, default } from "./DAuth";
 export {
   IDatabaseAdapter,
   IUserDocument,
-  ISessionData,
+  ISessionData as IAdapterSessionData,
   IOTPData,
 } from "./adapters/IDatabaseAdapter";
 export { MongoDBAdapter } from "./adapters/MongoDBAdapter";
+
+// ========================================
+// Session Stores
+// ========================================
+export {
+  ISessionStore,
+  ISessionData,
+  MemorySessionStore,
+  RedisSessionStore,
+  DatabaseSessionStore,
+} from "./stores";
 
 // ========================================
 // Configuration Types
@@ -28,6 +39,7 @@ export {
   DAuthHooks,
   AuthStrategy,
   TokenMode,
+  JWTInvalidationStrategy,
   JWTConfig,
   SessionConfig,
   OAuthConfig,

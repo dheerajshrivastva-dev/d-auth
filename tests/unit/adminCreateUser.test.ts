@@ -89,7 +89,7 @@ describe("Admin Create User & Force Password Reset", () => {
         firstName: "John",
       };
 
-      const response = await request(app).post("/admin/create-user").send(userData).expect(201);
+      await request(app).post("/admin/create-user").send(userData).expect(201);
 
       const user = await mockDb.findUserByEmail(userData.email);
       expect(user?.roles).toContain("user");

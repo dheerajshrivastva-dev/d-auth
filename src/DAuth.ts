@@ -1,10 +1,11 @@
-import { Express, RequestHandler } from "express";
+import { Express, RequestHandler, Application } from "express";
 import passport from "passport";
 import { DAuthOptions, DAuthHooks, JWTConfig, SessionConfig, RoleHierarchy } from "./types/config";
 import { IDatabaseAdapter } from "./adapters/IDatabaseAdapter";
+import { ISessionStore } from "./stores/ISessionStore";
+import { DatabaseSessionStore } from "./stores/DatabaseSessionStore";
 
 // Import middleware
-import { BaseAuthMiddleware } from "./middleware/BaseAuthMiddleware";
 import { RegisterMiddleware } from "./middleware/auth/registerMiddleware";
 import { LoginMiddleware } from "./middleware/auth/loginMiddleware";
 import { LogoutMiddleware } from "./middleware/auth/logoutMiddleware";
@@ -23,6 +24,7 @@ import {
 
 // Import role hierarchy
 import { initializeRoleHierarchy } from "./config/roleHierarchy";
+import { passportConfig } from "./passport/passportConfig";
 
 /**
  * DAuth - Database-agnostic authentication middleware for Express
@@ -59,6 +61,8 @@ import { initializeRoleHierarchy } from "./config/roleHierarchy";
  */
 export class DAuth {
   private database: IDatabaseAdapter;
+  private sessionStore: ISessionStore;
+  private maxSessionsPerUser: number;
   private hooks: DAuthHooks;
   private jwtConfig?: JWTConfig;
   private sessionConfig?: SessionConfig;
@@ -81,6 +85,10 @@ export class DAuth {
     this.jwtConfig = options.jwt;
     this.sessionConfig = options.session;
     this.roleHierarchy = options.roleHierarchy;
+    this.maxSessionsPerUser = options.maxSessionsPerUser || 10;
+
+    // Initialize session store (defaults to DatabaseSessionStore for backward compatibility)
+    this.sessionStore = options.sessionStore || new DatabaseSessionStore(this.database);
 
     // Validate configuration
     this.validateConfig();
@@ -93,51 +101,79 @@ export class DAuth {
     // Initialize middleware instances
     this.registerMw = new RegisterMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.loginMw = new LoginMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.logoutMw = new LogoutMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.refreshTokenMw = new RefreshTokenMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.passwordResetMw = new PasswordResetMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.oauthMw = new OAuthMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
 
     this.adminCreateUserMw = new AdminCreateUserMiddleware(
       this.database,
+      this.sessionStore,
+      this.maxSessionsPerUser,
       this.hooks,
       this.jwtConfig,
-      this.sessionConfig
+      this.sessionConfig,
+      options.accountSecurity,
+      options.oauth
     );
   }
 
@@ -169,6 +205,45 @@ export class DAuth {
   }
 
   /**
+   * Initialize d-auth
+   * Returns a middleware that validates required dependencies are set up
+   *
+   * @example
+   * ```typescript
+   * const app = express();
+   *
+   * // Required: Set up body-parser and cookie-parser BEFORE d-auth
+   * app.use(express.json());
+   * app.use(express.urlencoded({ extended: true }));
+   * app.use(cookieParser());
+   *
+   * const dAuth = new DAuth({ ... });
+   * app.use(dAuth.initialize());
+   * ```
+   */
+  public initialize(): RequestHandler {
+    return (req, res, next) => {
+      // Check if cookie-parser is set up (for JWT cookie mode)
+      if (this.jwtConfig?.tokenMode !== "response") {
+        if (!req.cookies) {
+          throw new Error(
+            "d-auth requires cookie-parser middleware. Please add: app.use(cookieParser()) before app.use(dAuth.initialize())"
+          );
+        }
+      }
+
+      // Check if body-parser is set up
+      if (!req.body) {
+        throw new Error(
+          "d-auth requires body-parser middleware. Please add: app.use(express.json()) and app.use(express.urlencoded({ extended: true })) before app.use(dAuth.initialize())"
+        );
+      }
+
+      next();
+    };
+  }
+
+  /**
    * Initialize Passport (for session-based authentication)
    * Call this before using session-based auth
    *
@@ -178,14 +253,13 @@ export class DAuth {
    * dAuth.initializePassport(app);
    * ```
    */
-  public initializePassport(app: Express): void {
+  public initializePassport(app: Express | Application): void {
     if (!this.sessionConfig) {
       console.warn("Session config not provided. Skipping Passport initialization.");
       return;
     }
 
     // Import and configure passport strategies
-    const { passportConfig } = require("./passport/passportConfig");
     passportConfig({
       database: this.database,
       // Add any additional passport options here
@@ -258,6 +332,7 @@ export class DAuth {
   public requireAuth(): RequestHandler {
     const options: RequireAuthOptions = {
       database: this.database,
+      sessionStore: this.sessionStore,
       jwtConfig: this.jwtConfig,
     };
 

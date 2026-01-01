@@ -90,7 +90,7 @@ describe("Register Middleware", () => {
         lastName: "User",
       };
 
-      const response = await request(app).post("/auth/register").send(userData).expect(201);
+      await request(app).post("/auth/register").send(userData).expect(201);
 
       const user = await mockDb.findUserByEmail(userData.email);
       const sessions = await mockDb.getAllSessions(user!.id);

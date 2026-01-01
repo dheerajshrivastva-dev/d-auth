@@ -1,9 +1,9 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-import User from "../models/User";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import bcrypt from "bcryptjs";
+import { IDatabaseAdapter } from "../adapters/IDatabaseAdapter";
 
 interface GoogleLoginDetails {
   googleClientId: string;
@@ -16,8 +16,9 @@ interface FacebookLoginDetails {
 }
 
 export interface AuthOptions {
-  enableGoogleLogin: boolean;
-  enableFacebookLogin: boolean;
+  database: IDatabaseAdapter;
+  enableGoogleLogin?: boolean;
+  enableFacebookLogin?: boolean;
   googleLoginDetails?: GoogleLoginDetails;
   facebookLoginDetails?: FacebookLoginDetails;
 }
@@ -29,7 +30,9 @@ export interface AuthOptions {
  * @return {void}
  */
 export function passportConfig(options: AuthOptions) {
-  passport.serializeUser((user: any, done) => {
+  const { database } = options;
+
+  passport.serializeUser((user: Express.User, done) => {
     return process.nextTick(function () {
       done(null, user.id);
     });
@@ -38,20 +41,14 @@ export function passportConfig(options: AuthOptions) {
   passport.deserializeUser((id: string, done) => {
     return process.nextTick(async function () {
       try {
-        const existingUser = await User.findById(id);
-        const user = {
-          id: existingUser?.id,
-          email: existingUser?.email,
-          firstName: existingUser?.firstName,
-          lastName: existingUser?.lastName,
-          isVerified: existingUser?.isVerified,
-          isAdmin: existingUser?.isAdmin,
-          profileUrl: existingUser?.profileUrl,
-          roles: existingUser?.roles || [],
-        };
-        return done(null, user);
-      } catch {
-        return done(new Error("No user associated with this id"));
+        const existingUser = await database.findUserById(id);
+        if (!existingUser) {
+          return done(new Error("No user associated with this id"));
+        }
+        // Return the full user object to match IUserDocument
+        return done(null, existingUser);
+      } catch (error) {
+        return done(error instanceof Error ? error : new Error("Failed to deserialize user"));
       }
     });
   });
@@ -72,27 +69,21 @@ export function passportConfig(options: AuthOptions) {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            let existingUser = await User.findOne({ googleId: profile.id });
+            let existingUser = await database.findUserByOAuthId("google", profile.id);
 
             if (!existingUser) {
-              existingUser = await User.create({
+              existingUser = await database.createUser({
                 email: profile.emails?.[0].value,
                 googleId: profile.id,
                 firstName: profile.name?.givenName,
                 lastName: profile.name?.familyName,
                 profileUrl: profile.photos?.[0].value,
+                roles: ["user"],
+                isVerified: true,
               });
             }
-            const user = {
-              id: existingUser.id,
-              email: existingUser.email,
-              firstName: existingUser.firstName,
-              lastName: existingUser.lastName,
-              isVerified: existingUser.isVerified,
-              isAdmin: existingUser.isAdmin,
-              profileUrl: existingUser.profileUrl,
-            };
-            return done(null, user);
+            // Return the full user object to match IUserDocument
+            return done(null, existingUser);
           } catch (error) {
             return done(error, false);
           }
@@ -107,7 +98,7 @@ export function passportConfig(options: AuthOptions) {
       { usernameField: "email", passReqToCallback: true },
       async (req, email, password, done) => {
         try {
-          const existingUser = await User.findOne({ email: email });
+          const existingUser = await database.findUserByEmail(email);
           if (!existingUser) {
             return done(null, false, {
               message: "No user found with the provided credentials. Please create register.",
@@ -128,17 +119,8 @@ export function passportConfig(options: AuthOptions) {
             return done(null, false, { message: "Incorrect email or password." });
           }
 
-          const user = {
-            id: existingUser.id,
-            email: existingUser.email,
-            firstName: existingUser.firstName,
-            lastName: existingUser.lastName,
-            isVerified: existingUser.isVerified,
-            isAdmin: existingUser.isAdmin,
-            profileUrl: existingUser.profileUrl,
-          };
-          // Return user and tokens
-          return done(null, user);
+          // Return the full user object to match IUserDocument
+          return done(null, existingUser);
         } catch (error) {
           return done(error);
         }
